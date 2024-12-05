@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_URL =
@@ -15,8 +15,22 @@ function App() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
 
-  const sendMessage = async () => {
+  useEffect(() => {
+    // Generate or retrieve session ID when component mounts
+    const existingSessionId = localStorage.getItem("chatSessionId");
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+    } else {
+      const newSessionId =
+        Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem("chatSessionId", newSessionId);
+      setSessionId(newSessionId);
+    }
+  }, []);
+
+  const sendMessage = async (message) => {
     if (!input.trim()) return;
 
     const userMessage = {
@@ -29,9 +43,17 @@ function App() {
     setInput("");
 
     try {
-      const response = await axios.post(`${API_URL}/api/message`, {
-        message: input,
-      });
+      const response = await axios.post(
+        `${API_URL}/api/message`,
+        {
+          message: input,
+        },
+        {
+          headers: {
+            "session-id": sessionId,
+          },
+        }
+      );
 
       const assistantMessage = {
         role: "assistant",
@@ -79,9 +101,17 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/api/message`, {
-        message: selectedText,
-      });
+      const response = await axios.post(
+        `${API_URL}/api/message`,
+        {
+          message: selectedText,
+        },
+        {
+          headers: {
+            "session-id": sessionId,
+          },
+        }
+      );
 
       const assistantMessage = {
         role: "assistant",

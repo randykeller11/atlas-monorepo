@@ -11,8 +11,8 @@ const PORT = process.env.PORT || 5001;
 app.use(
   cors({
     origin: [
-      "http://localhost:3000",
       "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com",
+      "http://localhost:3000",
     ],
     credentials: true,
   })
@@ -38,6 +38,14 @@ const openai = new OpenAI({
 // Global variables for assistant and thread
 let assistantId = null;
 let threadId = null;
+
+// Add session management
+const sessions = new Map();
+
+// Generate a unique session ID for each new connection
+function generateSessionId() {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}
 
 // Initialize Assistant and Thread
 async function initializeAssistant() {
@@ -111,6 +119,15 @@ function sanitizeMultipleChoice(text) {
 
 // Endpoint to handle messages from the client
 app.post("/api/message", async (req, res) => {
+  const sessionId = req.headers["session-id"];
+
+  if (!sessions.has(sessionId)) {
+    // Create new thread for this session
+    const thread = await openai.beta.threads.create();
+    sessions.set(sessionId, thread.id);
+  }
+
+  const threadId = sessions.get(sessionId);
   const { message } = req.body;
   console.log("Received message:", message);
   console.log("Using threadId:", threadId, "and assistantId:", assistantId);
