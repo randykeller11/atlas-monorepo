@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import axios from "axios";
 
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com/";
+
 function App() {
   const [conversation, setConversation] = useState([
     {
@@ -25,7 +29,7 @@ function App() {
     setInput("");
 
     try {
-      const response = await axios.post("http://localhost:5001/api/message", {
+      const response = await axios.post(`${API_URL}/api/message`, {
         message: input,
       });
 
@@ -75,7 +79,7 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:5001/api/message", {
+      const response = await axios.post(`${API_URL}/api/message`, {
         message: selectedText,
       });
 
