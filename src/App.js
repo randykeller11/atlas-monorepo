@@ -1,5 +1,9 @@
-import logo from './logo.svg';
-import './App.css';
+import logo from "./logo.svg";
+import "./App.css";
+
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com";
 
 function App() {
   return (
