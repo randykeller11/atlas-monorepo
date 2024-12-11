@@ -13,15 +13,27 @@ app.use(
     origin: [
       "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com",
       "http://localhost:3000",
+      "http://localhost:5001",
     ],
     credentials: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "session-id"],
   })
 );
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+  const allowedOrigins = [
+    "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com",
+    "http://localhost:3000",
+  ];
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
+    "Origin, X-Requested-With, Content-Type, Accept, session-id"
   );
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.header("Access-Control-Allow-Credentials", "true");
@@ -50,6 +62,11 @@ function generateSessionId() {
 // Initialize Assistant and Thread
 async function initializeAssistant() {
   try {
+    // Force reload the instructions module to get the latest version
+    delete require.cache[require.resolve("./instructions")];
+    const { instructions } = require("./instructions");
+    console.log("Initializing assistant with instructions:", instructions);
+
     // Step 1: Create an Assistant
     const assistant = await openai.beta.assistants.create({
       name: "Atlas Career Coach",
@@ -58,10 +75,12 @@ async function initializeAssistant() {
       model: "gpt-4",
     });
     assistantId = assistant.id;
+    console.log("Assistant created with ID:", assistantId);
 
     // Step 2: Create a Thread
     const thread = await openai.beta.threads.create();
     threadId = thread.id;
+    console.log("Thread created with ID:", threadId);
 
     console.log("Assistant and thread initialized successfully.");
   } catch (error) {
@@ -204,16 +223,90 @@ app.post("/api/message", async (req, res) => {
   }
 });
 
-// Add this endpoint for development
+// Add a function to cleanup existing sessions
+const cleanupSessions = () => {
+  sessions.clear();
+  console.log("Cleared all active sessions");
+};
+
+// Update the /api/update-instructions endpoint
+app.post("/api/update-instructions", async (req, res) => {
+  try {
+    const { instructions } = req.body;
+    console.log("Updating instructions to:", instructions);
+
+    // Update the instructions file
+    const fs = require("fs").promises; // Use promises version
+    const path = require("path");
+    const filePath = path.join(__dirname, "instructions.js");
+
+    // Format the content with proper escaping for backticks
+    const escapedInstructions = instructions.replace(/`/g, "\\`");
+    const content = `const instructions = \`${escapedInstructions}\`;\n\nmodule.exports = { instructions };`;
+
+    // Write file synchronously to ensure it's complete before continuing
+    await fs.writeFile(filePath, content, "utf8");
+    console.log("Instructions file updated successfully");
+
+    // Clear the require cache for the instructions file
+    delete require.cache[require.resolve("./instructions")];
+
+    // Reset the assistant with new instructions
+    if (assistantId) {
+      console.log("Deleting old assistant:", assistantId);
+      await openai.beta.assistants.del(assistantId);
+      assistantId = null; // Clear the old ID
+    }
+
+    // Clear all active sessions
+    cleanupSessions();
+
+    // Reinitialize the assistant
+    await initializeAssistant();
+    console.log("New assistant created with ID:", assistantId);
+
+    // Verify the new instructions
+    const newInstructions = require("./instructions").instructions;
+    console.log("Verified new instructions:", newInstructions);
+
+    res.json({
+      message: "Instructions updated successfully",
+      newInstructions, // Send back the new instructions for verification
+    });
+  } catch (error) {
+    console.error("Error updating instructions:", error);
+    res.status(500).json({ error: "Failed to update instructions" });
+  }
+});
+
+// Also update the reset-assistant endpoint to clear sessions
 app.post("/api/reset-assistant", async (req, res) => {
   try {
     if (assistantId) {
       await openai.beta.assistants.del(assistantId);
     }
+
+    // Clear all active sessions
+    cleanupSessions();
+
     await initializeAssistant();
     res.json({ message: "Assistant reset successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to reset assistant" });
+  }
+});
+
+// Update the get instructions endpoint
+app.get("/api/instructions", (req, res) => {
+  try {
+    // Clear the require cache to ensure we get the latest version
+    delete require.cache[require.resolve("./instructions")];
+    const { instructions } = require("./instructions");
+    console.log("Fetching current instructions:", instructions);
+    res.json({ instructions });
+  } catch (error) {
+    console.error("Error fetching instructions:", error);
+    res.status(500).json({ error: "Failed to fetch instructions" });
   }
 });
 

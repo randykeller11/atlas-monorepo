@@ -1,11 +1,65 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import Admin from "./components/Admin";
+import Chat from "./components/Chat";
+import config from "./config";
 
-const API_URL =
-  process.env.REACT_APP_API_URL ||
-  "https://nucoord-atlas-e99e7eee1cf6.herokuapp.com/";
+const { API_URL } = config;
 
-function App() {
+export const HamburgerMenu = ({ isOpen, toggleMenu }) => {
+  return (
+    <div style={styles.hamburger} onClick={toggleMenu}>
+      <div
+        style={{
+          ...styles.hamburgerLine,
+          transform: isOpen ? "rotate(45deg) translate(5px, 5px)" : "none",
+        }}
+      ></div>
+      <div
+        style={{
+          ...styles.hamburgerLine,
+          opacity: isOpen ? 0 : 1,
+        }}
+      ></div>
+      <div
+        style={{
+          ...styles.hamburgerLine,
+          transform: isOpen ? "rotate(-45deg) translate(7px, -6px)" : "none",
+        }}
+      ></div>
+    </div>
+  );
+};
+
+export const Dropdown = ({ isOpen }) => {
+  const navigate = useNavigate();
+
+  const handleAdminClick = () => {
+    navigate("/admin");
+  };
+
+  return (
+    <div
+      style={{
+        ...styles.dropdown,
+        display: isOpen ? "block" : "none",
+      }}
+    >
+      <div style={styles.dropdownItem} onClick={handleAdminClick}>
+        Admin
+      </div>
+    </div>
+  );
+};
+
+function AppContent() {
   const [conversation, setConversation] = useState([
     {
       role: "assistant",
@@ -16,6 +70,24 @@ function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Reset chat if coming from admin with reset flag
+    if (location.state?.shouldResetChat) {
+      setConversation([
+        {
+          role: "assistant",
+          content:
+            "Hi, I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What's your name?",
+        },
+      ]);
+      // Clear the reset flag from location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   useEffect(() => {
     // Generate or retrieve session ID when component mounts
@@ -135,57 +207,34 @@ function App() {
   };
 
   return (
-    <div style={styles.container}>
-      <h1>Atlas Career Coach</h1>
-      <div style={styles.chatWindow}>
-        {conversation.map((msg, index) => (
-          <div key={index} style={styles.message}>
-            <strong>{msg.role === "user" ? "You" : "Atlas"}:</strong>{" "}
-            {msg.type === "multiple_choice" ? (
-              <div>
-                <p>{msg.content}</p>
-                <p>{msg.question}</p>
-                <div style={styles.optionsContainer}>
-                  {msg.options?.map((option) => (
-                    <label key={option.id} style={styles.optionLabel}>
-                      <input
-                        type="radio"
-                        name={`question-${index}`}
-                        value={option.id}
-                        onChange={(e) => handleOptionSelect(e, index)}
-                      />
-                      {option.text}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              msg.content
-            )}
-          </div>
-        ))}
-        {loading && (
-          <div style={styles.loadingContainer}>
-            <div style={{ ...styles.loadingDot, animationDelay: "0s" }}></div>
-            <div style={{ ...styles.loadingDot, animationDelay: "0.2s" }}></div>
-            <div style={{ ...styles.loadingDot, animationDelay: "0.4s" }}></div>
-          </div>
-        )}
-      </div>
-      <div style={styles.inputArea}>
-        <input
-          type="text"
-          placeholder="Type your message..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          style={styles.input}
-        />
-        <button onClick={sendMessage} style={styles.button} disabled={loading}>
-          Send
-        </button>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/admin" element={<Admin />} />
+      <Route
+        path="/"
+        element={
+          <Chat
+            conversation={conversation}
+            loading={loading}
+            input={input}
+            setInput={setInput}
+            handleKeyPress={handleKeyPress}
+            sendMessage={sendMessage}
+            handleOptionSelect={handleOptionSelect}
+            menuRef={menuRef}
+            isMenuOpen={isMenuOpen}
+            setIsMenuOpen={setIsMenuOpen}
+          />
+        }
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
@@ -246,6 +295,38 @@ const styles = {
     borderRadius: "4px",
     backgroundColor: "#f0f0f0",
   },
+  hamburger: {
+    width: "30px",
+    height: "20px",
+    position: "relative",
+    cursor: "pointer",
+  },
+  hamburgerLine: {
+    width: "100%",
+    height: "2px",
+    backgroundColor: "#333",
+    margin: "6px 0",
+  },
+  dropdown: {
+    position: "absolute",
+    top: "100%",
+    right: "0",
+    backgroundColor: "#fff",
+    border: "1px solid #ccc",
+    padding: "10px",
+    zIndex: 1000,
+  },
+  dropdownItem: {
+    padding: "10px 0",
+    cursor: "pointer",
+  },
+  menuContainer: {
+    position: "relative",
+    zIndex: 1000,
+    width: "30px",
+    height: "30px",
+    marginBottom: "20px",
+  },
 };
 
 const keyframes = `
@@ -265,5 +346,4 @@ const keyframes = `
 const styleSheet = document.createElement("style");
 styleSheet.textContent = keyframes;
 document.head.appendChild(styleSheet);
-
 export default App;
