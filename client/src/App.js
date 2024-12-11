@@ -304,21 +304,29 @@ const styles = {
   hamburgerLine: {
     width: "100%",
     height: "2px",
-    backgroundColor: "#333",
+    backgroundColor: "#000000",
     margin: "6px 0",
+    transition: "all 0.3s ease",
   },
   dropdown: {
     position: "absolute",
     top: "100%",
     right: "0",
-    backgroundColor: "#fff",
-    border: "1px solid #ccc",
+    backgroundColor: "#f5f5f5",
+    border: "1px solid #cccccc",
     padding: "10px",
+    borderRadius: "6px",
     zIndex: 1000,
+    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
   },
   dropdownItem: {
-    padding: "10px 0",
+    padding: "10px 15px",
     cursor: "pointer",
+    color: "#000000",
+    "&:hover": {
+      backgroundColor: "#e0e0e0",
+    },
+    borderRadius: "4px",
   },
   menuContainer: {
     position: "relative",
@@ -343,7 +351,38 @@ const keyframes = `
   }
 `;
 
+const globalStyles = `
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #e6e6e6;
+    color: #000000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f5f5f5;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cccccc;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b3b3b3;
+  }
+`;
+
 const styleSheet = document.createElement("style");
-styleSheet.textContent = keyframes;
+styleSheet.textContent = keyframes + globalStyles;
 document.head.appendChild(styleSheet);
 export default App;

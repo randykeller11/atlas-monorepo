@@ -54,11 +54,6 @@ let threadId = null;
 // Add session management
 const sessions = new Map();
 
-// Generate a unique session ID for each new connection
-function generateSessionId() {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
 // Initialize Assistant and Thread
 async function initializeAssistant() {
   try {
