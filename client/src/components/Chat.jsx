@@ -65,29 +65,34 @@ const styles = {
     animationTimingFunction: "ease-in-out",
   },
   menuContainer: {
-    position: "relative",
+    display: 'flex',
+    alignItems: 'center',
+    position: 'relative',
     zIndex: 1000,
-    width: "30px",
-    height: "30px",
-    marginBottom: "20px",
+    width: '30px',
+    height: '30px',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '20px',
-    color: "#000000",
-  },
-  logo: {
-    width: '150px',
-    height: 'auto',
-    marginLeft: 'auto',
+    width: '100%',
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
-  }
+  },
+  logo: {
+    width: '150px',
+    height: 'auto',
+  },
+  title: {
+    margin: 0,  // Remove default margin from h1
+    fontSize: '24px',  // Adjust size as needed
+    lineHeight: '30px',  // Match height of hamburger menu
+  },
 };
 
 const Chat = ({
@@ -113,7 +118,7 @@ const Chat = ({
             />
             <Dropdown isOpen={isMenuOpen} />
           </div>
-          <h1>Atlas Career Coach</h1>
+          <h1 style={styles.title}>Atlas Career Coach</h1>
         </div>
         <img 
           src="/images/NucoordLogo.PNG"
