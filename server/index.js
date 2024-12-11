@@ -4,6 +4,7 @@ const OpenAI = require("openai");
 const { instructions } = require("./instructions");
 require("dotenv").config();
 const path = require("path");
+const { users } = require("./users");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -302,6 +303,23 @@ app.get("/api/instructions", (req, res) => {
   } catch (error) {
     console.error("Error fetching instructions:", error);
     res.status(500).json({ error: "Failed to fetch instructions" });
+  }
+});
+
+app.post("/api/auth", (req, res) => {
+  const { username, password } = req.body;
+
+  const user = users.find(
+    (u) => u.username === username && u.password === password
+  );
+
+  if (user) {
+    res.json({ authenticated: true });
+  } else {
+    res.status(401).json({
+      authenticated: false,
+      message: "Invalid username or password",
+    });
   }
 });
 

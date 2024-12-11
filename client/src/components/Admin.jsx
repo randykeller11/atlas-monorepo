@@ -44,6 +44,26 @@ const styles = {
     display: 'flex',
     gap: '10px',
     marginBottom: '20px',
+  },
+  loginContainer: {
+    maxWidth: '400px',
+    margin: '100px auto',
+    padding: '20px',
+    backgroundColor: '#f5f5f5',
+    borderRadius: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  },
+  loginInput: {
+    width: '100%',
+    padding: '10px',
+    marginBottom: '10px',
+    border: '1px solid #cccccc',
+    borderRadius: '4px',
+    fontSize: '16px',
+  },
+  errorMessage: {
+    color: '#dc3545',
+    marginBottom: '10px',
   }
 };
 
@@ -52,23 +72,69 @@ function Admin() {
   const [instructions, setInstructions] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
-  useEffect(() => {
-    // Fetch current instructions when component mounts
-    const fetchInstructions = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/instructions`);
-        console.log("Fetched instructions:", response.data.instructions);
-        setInstructions(response.data.instructions);
-      } catch (error) {
-        console.error('Error fetching instructions:', error);
-        setMessage('Failed to load instructions');
-        setIsError(true);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${API_URL}/api/auth`, {
+        username,
+        password
+      });
+      
+      if (response.data.authenticated) {
+        setIsAuthenticated(true);
+        setLoginError('');
+        // Fetch instructions after successful login
+        fetchInstructions();
       }
-    };
+    } catch (error) {
+      setLoginError('Invalid username or password');
+    }
+  };
 
-    fetchInstructions();
-  }, []);
+  const fetchInstructions = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/instructions`);
+      console.log("Fetched instructions:", response.data.instructions);
+      setInstructions(response.data.instructions);
+    } catch (error) {
+      console.error('Error fetching instructions:', error);
+      setMessage('Failed to load instructions');
+      setIsError(true);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div style={styles.loginContainer}>
+        <h2>Admin Login</h2>
+        <form onSubmit={handleLogin}>
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={styles.loginInput}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.loginInput}
+          />
+          {loginError && <div style={styles.errorMessage}>{loginError}</div>}
+          <button style={styles.button} type="submit">
+            Login
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   const handleSave = async () => {
     try {
@@ -111,14 +177,10 @@ function Admin() {
     }
   };
 
-  const handleBack = () => {
-    navigate('/');
-  };
-
   return (
     <div style={styles.container}>
       <div style={styles.buttonContainer}>
-        <button style={styles.button} onClick={handleBack}>
+        <button style={styles.button} onClick={() => navigate('/')}>
           Back to Home
         </button>
       </div>
