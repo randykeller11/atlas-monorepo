@@ -5,6 +5,7 @@ const { instructions } = require("./instructions");
 require("dotenv").config();
 const path = require("path");
 const { users } = require("./users");
+const fs = require("fs").promises;
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -320,6 +321,48 @@ app.post("/api/auth", (req, res) => {
       authenticated: false,
       message: "Invalid username or password",
     });
+  }
+});
+
+app.get("/api/initial-message", (req, res) => {
+  try {
+    const appPath = path.join(__dirname, "../client/src/App.js");
+    fs.readFile(appPath, "utf8")
+      .then((content) => {
+        const match = content.match(/content:\s*"([^"]+)"/);
+        if (match) {
+          res.json({ message: match[1] });
+        } else {
+          throw new Error("Initial message not found in App.js");
+        }
+      })
+      .catch((error) => {
+        console.error("Error reading initial message:", error);
+        res.status(500).json({ error: "Failed to read initial message" });
+      });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Failed to get initial message" });
+  }
+});
+
+app.post("/api/initial-message", async (req, res) => {
+  try {
+    const { message } = req.body;
+    const appPath = path.join(__dirname, "../client/src/App.js");
+
+    let content = await fs.readFile(appPath, "utf8");
+    content = content.replace(/(content:\s*)"([^"]+)"/, `$1"${message}"`);
+
+    await fs.writeFile(appPath, content, "utf8");
+
+    res.json({
+      message: "Initial message updated successfully",
+      newMessage: message,
+    });
+  } catch (error) {
+    console.error("Error updating initial message:", error);
+    res.status(500).json({ error: "Failed to update initial message" });
   }
 });
 

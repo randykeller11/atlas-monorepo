@@ -22,6 +22,13 @@ const styles = {
     padding: '10px',
     fontFamily: 'monospace',
   },
+  smallTextArea: {
+    width: '100%',
+    minHeight: '100px',
+    marginBottom: '20px',
+    padding: '10px',
+    fontFamily: 'monospace',
+  },
   button: {
     padding: '10px 20px',
     fontSize: '16px',
@@ -64,18 +71,59 @@ const styles = {
   errorMessage: {
     color: '#dc3545',
     marginBottom: '10px',
+  },
+  sectionHeader: {
+    fontSize: '1.5em',
+    marginBottom: '15px',
+    color: '#333',
+    borderBottom: '1px solid #cccccc',
+    paddingBottom: '10px',
+  },
+  instructionsSection: {
+    marginBottom: '30px',
   }
 };
 
 function Admin() {
   const navigate = useNavigate();
   const [instructions, setInstructions] = useState('');
+  const [initialMessage, setInitialMessage] = useState('');
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchInstructions();
+      fetchInitialMessage();
+    }
+  }, [isAuthenticated]);
+
+  const fetchInitialMessage = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/initial-message`);
+      setInitialMessage(response.data.message);
+    } catch (error) {
+      console.error('Error fetching initial message:', error);
+      setMessage('Failed to load initial message');
+      setIsError(true);
+    }
+  };
+
+  const handleSaveInitialMessage = async () => {
+    try {
+      await axios.post(`${API_URL}/api/initial-message`, { message: initialMessage });
+      setMessage('Initial message updated successfully');
+      setIsError(false);
+    } catch (error) {
+      console.error('Error updating initial message:', error);
+      setMessage('Failed to update initial message');
+      setIsError(true);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -185,20 +233,40 @@ function Admin() {
         </button>
       </div>
       <h1 style={styles.heading}>Admin Panel</h1>
-      <textarea
-        style={styles.textArea}
-        value={instructions}
-        onChange={(e) => setInstructions(e.target.value)}
-        placeholder="Enter instructions here..."
-      />
-      <div>
-        <button style={styles.button} onClick={handleSave}>
-          Save Instructions
-        </button>
-        <button style={styles.button} onClick={handleReset}>
-          Reset Assistant
-        </button>
+      
+      <div style={styles.instructionsSection}>
+        <h2 style={styles.sectionHeader}>Initial Message</h2>
+        <textarea
+          style={styles.smallTextArea}
+          value={initialMessage}
+          onChange={(e) => setInitialMessage(e.target.value)}
+          placeholder="Enter the initial message users will see..."
+        />
+        <div style={styles.buttonContainer}>
+          <button style={styles.button} onClick={handleSaveInitialMessage}>
+            Save Initial Message
+          </button>
+        </div>
       </div>
+
+      <div style={styles.instructionsSection}>
+        <h2 style={styles.sectionHeader}>Chatbot Instructions</h2>
+        <textarea
+          style={styles.textArea}
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Enter instructions here..."
+        />
+        <div>
+          <button style={styles.button} onClick={handleSave}>
+            Save Instructions
+          </button>
+          <button style={styles.button} onClick={handleReset}>
+            Reset Assistant
+          </button>
+        </div>
+      </div>
+
       {message && (
         <div style={{
           ...styles.message,
