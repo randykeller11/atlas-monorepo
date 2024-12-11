@@ -1,16 +1,9 @@
 {
   "name": "nucoord-atlas",
   "version": "1.0.0",
-  "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node server.js",
     "heroku-postbuild": "cd client && npm install && npm run build"
-  },
-  "dependencies": {
-    "express": "^4.17.1",
-    "cors": "^2.8.5",
-    "dotenv": "^10.0.0",
-    "openai": "^1.0.0"
   },
   "engines": {
     "node": "22.x"

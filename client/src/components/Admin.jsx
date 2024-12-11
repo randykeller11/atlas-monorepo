@@ -94,34 +94,84 @@ function Admin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showingSavePrompt, setShowingSavePrompt] = useState(false);
+  const [pendingSave, setPendingSave] = useState(null);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchInstructions();
-      fetchInitialMessage();
-    }
-  }, [isAuthenticated]);
+    fetchInitialData();
+  }, []);
 
-  const fetchInitialMessage = async () => {
+  const fetchInitialData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/initial-message`);
-      setInitialMessage(response.data.message);
+      const instructionsResponse = await axios.get(`${API_URL}/api/instructions`);
+      setInstructions(instructionsResponse.data.instructions);
+      const messageResponse = await axios.get(`${API_URL}/api/initial-message`);
+      setInitialMessage(messageResponse.data.message);
     } catch (error) {
-      console.error('Error fetching initial message:', error);
-      setMessage('Failed to load initial message');
+      console.error('Error fetching data:', error);
+      setMessage('Failed to load data');
       setIsError(true);
     }
   };
 
-  const handleSaveInitialMessage = async () => {
+  const clearCredentials = () => {
+    setUsername('');
+    setPassword('');
+    setLoginError('');
+  };
+
+  const handleSaveInitialMessage = () => {
+    setShowingSavePrompt(true);
+    clearCredentials();
+    setPendingSave({
+      type: 'initial-message',
+      data: initialMessage
+    });
+  };
+
+  const handleSave = () => {
+    setShowingSavePrompt(true);
+    clearCredentials();
+    setPendingSave({
+      type: 'instructions',
+      data: instructions
+    });
+  };
+
+  const handleReset = () => {
+    setShowingSavePrompt(true);
+    clearCredentials();
+    setPendingSave({
+      type: 'reset',
+      data: null
+    });
+  };
+
+  const executeSave = async () => {
     try {
-      await axios.post(`${API_URL}/api/initial-message`, { message: initialMessage });
-      setMessage('Initial message updated successfully');
+      if (pendingSave.type === 'instructions') {
+        await axios.post(`${API_URL}/api/update-instructions`, { 
+          instructions: pendingSave.data 
+        });
+        setMessage('Instructions updated successfully');
+      } else if (pendingSave.type === 'initial-message') {
+        await axios.post(`${API_URL}/api/initial-message`, { 
+          message: pendingSave.data 
+        });
+        setMessage('Initial message updated successfully');
+      } else if (pendingSave.type === 'reset') {
+        await axios.post(`${API_URL}/api/reset-assistant`);
+        setMessage('Assistant reset successfully');
+      }
       setIsError(false);
+      setTimeout(() => {
+        setMessage('');
+      }, 3000);
+      return true;
     } catch (error) {
-      console.error('Error updating initial message:', error);
-      setMessage('Failed to update initial message');
+      setMessage(`Failed to ${pendingSave.type === 'reset' ? 'reset assistant' : 'update ' + pendingSave.type}`);
       setIsError(true);
+      return false;
     }
   };
 
@@ -136,30 +186,24 @@ function Admin() {
       if (response.data.authenticated) {
         setIsAuthenticated(true);
         setLoginError('');
-        // Fetch instructions after successful login
-        fetchInstructions();
+        if (pendingSave) {
+          const saveSuccess = await executeSave();
+          if (saveSuccess) {
+            setShowingSavePrompt(false);
+            setPendingSave(null);
+            clearCredentials();
+          }
+        }
       }
     } catch (error) {
       setLoginError('Invalid username or password');
     }
   };
 
-  const fetchInstructions = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/instructions`);
-      console.log("Fetched instructions:", response.data.instructions);
-      setInstructions(response.data.instructions);
-    } catch (error) {
-      console.error('Error fetching instructions:', error);
-      setMessage('Failed to load instructions');
-      setIsError(true);
-    }
-  };
-
-  if (!isAuthenticated) {
+  if (showingSavePrompt) {
     return (
       <div style={styles.loginContainer}>
-        <h2>Admin Login</h2>
+        <h2>Log in to save changes</h2>
         <form onSubmit={handleLogin}>
           <input
             type="text"
@@ -176,54 +220,26 @@ function Admin() {
             style={styles.loginInput}
           />
           {loginError && <div style={styles.errorMessage}>{loginError}</div>}
-          <button style={styles.button} type="submit">
-            Login
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button style={styles.button} type="submit">
+              Save Changes
+            </button>
+            <button 
+              style={{...styles.button, backgroundColor: '#6c757d'}} 
+              onClick={() => {
+                setShowingSavePrompt(false);
+                setPendingSave(null);
+                clearCredentials();
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </div>
     );
   }
-
-  const handleSave = async () => {
-    try {
-      console.log("Saving new instructions:", instructions);
-      const response = await axios.post(`${API_URL}/api/update-instructions`, { instructions });
-      console.log("Server response:", response.data);
-      
-      // Verify the update by fetching the instructions again
-      const verifyResponse = await axios.get(`${API_URL}/api/instructions`);
-      console.log("Verified instructions:", verifyResponse.data.instructions);
-      
-      if (verifyResponse.data.instructions === instructions) {
-        setMessage('Instructions updated successfully');
-        setIsError(false);
-        
-        console.log("Clearing chat session");
-        localStorage.removeItem('chatSessionId');
-        
-        console.log("Navigating to home with reset flag");
-        navigate('/', { state: { shouldResetChat: true } });
-      } else {
-        throw new Error('Instructions verification failed');
-      }
-    } catch (error) {
-      console.error('Error updating instructions:', error);
-      setMessage('Failed to update instructions: ' + error.message);
-      setIsError(true);
-    }
-  };
-
-  const handleReset = async () => {
-    try {
-      await axios.post(`${API_URL}/api/reset-assistant`);
-      setMessage('Assistant reset successfully');
-      setIsError(false);
-    } catch (error) {
-      console.error('Error resetting assistant:', error);
-      setMessage('Failed to reset assistant');
-      setIsError(true);
-    }
-  };
 
   return (
     <div style={styles.container}>
