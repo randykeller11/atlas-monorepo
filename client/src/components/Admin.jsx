@@ -175,6 +175,25 @@ function Admin() {
     }
   };
 
+  const handleInitialLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${API_URL}/api/auth`, {
+        username,
+        password
+      });
+      
+      if (response.data.authenticated) {
+        setIsAuthenticated(true);
+        setLoginError('');
+        clearCredentials();
+        await fetchInitialData();
+      }
+    } catch (error) {
+      setLoginError('Invalid username or password');
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -199,6 +218,44 @@ function Admin() {
       setLoginError('Invalid username or password');
     }
   };
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated && !showingSavePrompt) {
+    return (
+      <div style={styles.loginContainer}>
+        <h2>Admin Login</h2>
+        <form onSubmit={handleInitialLogin}>
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={styles.loginInput}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={styles.loginInput}
+          />
+          {loginError && <div style={styles.errorMessage}>{loginError}</div>}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button style={styles.button} type="submit">
+              Login
+            </button>
+            <button 
+              style={{...styles.button, backgroundColor: '#6c757d'}} 
+              onClick={() => navigate('/')}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   if (showingSavePrompt) {
     return (
