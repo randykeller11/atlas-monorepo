@@ -154,16 +154,24 @@ function Admin() {
           instructions: pendingSave.data 
         });
         setMessage('Instructions updated successfully');
+        localStorage.removeItem('chatSessionId');
+        localStorage.setItem('shouldResetChat', 'true');
       } else if (pendingSave.type === 'initial-message') {
         await axios.post(`${API_URL}/api/initial-message`, { 
           message: pendingSave.data 
         });
         setMessage('Initial message updated successfully');
+        localStorage.removeItem('chatSessionId');
+        localStorage.setItem('shouldResetChat', 'true');
       } else if (pendingSave.type === 'reset') {
         await axios.post(`${API_URL}/api/reset-assistant`);
         setMessage('Assistant reset successfully');
+        localStorage.removeItem('chatSessionId');
+        localStorage.setItem('shouldResetChat', 'true');
       }
       setIsError(false);
+      setShowingSavePrompt(false);
+      setPendingSave(null);
       setTimeout(() => {
         setMessage('');
       }, 3000);
@@ -216,6 +224,15 @@ function Admin() {
       }
     } catch (error) {
       setLoginError('Invalid username or password');
+    }
+  };
+
+  const handleBackToHome = () => {
+    if (localStorage.getItem('shouldResetChat')) {
+      navigate('/', { state: { shouldResetChat: true } });
+      localStorage.removeItem('shouldResetChat');
+    } else {
+      navigate('/');
     }
   };
 
@@ -301,7 +318,7 @@ function Admin() {
   return (
     <div style={styles.container}>
       <div style={styles.buttonContainer}>
-        <button style={styles.button} onClick={() => navigate('/')}>
+        <button style={styles.button} onClick={handleBackToHome}>
           Back to Home
         </button>
       </div>
