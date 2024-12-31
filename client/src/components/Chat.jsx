@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { HamburgerMenu, Dropdown } from '../App';
 
 // Define styles within the same file
@@ -93,6 +93,72 @@ const styles = {
     fontSize: '24px',  // Adjust size as needed
     lineHeight: '30px',  // Match height of hamburger menu
   },
+  multipleChoice: {
+    marginTop: '10px',
+  },
+  radioGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginTop: '10px',
+  },
+  radioOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    backgroundColor: '#f0f0f0',
+    '&:hover': {
+      backgroundColor: '#e0e0e0',
+    },
+  },
+  radioInput: {
+    margin: '0',
+  },
+  disabledInput: {
+    flex: "1",
+    padding: "12px",
+    fontSize: "16px",
+    backgroundColor: "#e0e0e0",  // Lighter gray for disabled state
+    border: "1px solid #cccccc",
+    borderRadius: "6px",
+    color: "#666666",  // Darker gray text for disabled state
+    outline: "none",
+    cursor: "not-allowed",
+  },
+  disabledButton: {
+    padding: "10px 20px",
+    fontSize: "16px",
+    backgroundColor: "#cccccc",  // Gray out the button
+    color: "#666666",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "not-allowed",
+  },
+};
+
+const MultipleChoiceQuestion = ({ message, onSelect }) => {
+  return (
+    <div style={styles.multipleChoice}>
+      <div><strong>{message.question}</strong></div>
+      <div style={styles.radioGroup}>
+        {message.options.map((option) => (
+          <label key={option.id} style={styles.radioOption}>
+            <input
+              type="radio"
+              name={`question-${message.question}`}
+              value={option.id}
+              onChange={(e) => onSelect(e)}
+              style={styles.radioInput}
+            />
+            {option.text}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 const Chat = ({
@@ -102,10 +168,23 @@ const Chat = ({
   setInput,
   handleKeyPress,
   sendMessage,
+  handleOptionSelect,
   menuRef,
   isMenuOpen,
   setIsMenuOpen
 }) => {
+  const chatWindowRef = useRef(null);
+
+  useEffect(() => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, [conversation, loading]);
+
+  // Check if the last message is a multiple choice question
+  const lastMessage = conversation[conversation.length - 1];
+  const showTextInput = !lastMessage?.type || lastMessage.type !== 'multiple_choice';
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -125,11 +204,17 @@ const Chat = ({
           style={styles.logo}
         />
       </div>
-      <div style={styles.chatWindow}>
+      <div ref={chatWindowRef} style={styles.chatWindow}>
         {conversation.map((message, index) => (
           <div key={index} style={styles.message}>
             <strong>{message.role === "assistant" ? "Atlas: " : "You: "}</strong>
             {message.content}
+            {message.type === 'multiple_choice' && (
+              <MultipleChoiceQuestion
+                message={message}
+                onSelect={(e) => handleOptionSelect(e, index)}
+              />
+            )}
           </div>
         ))}
         {loading && (
@@ -145,11 +230,16 @@ const Chat = ({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          style={styles.input}
-          placeholder="Type your message..."
+          onKeyPress={(e) => showTextInput && handleKeyPress(e)}
+          style={showTextInput ? styles.input : styles.disabledInput}
+          placeholder={showTextInput ? "Type your message..." : "Please select an option above..."}
+          disabled={!showTextInput}
         />
-        <button onClick={sendMessage} style={styles.button}>
+        <button 
+          onClick={sendMessage} 
+          style={showTextInput ? styles.button : styles.disabledButton}
+          disabled={!showTextInput}
+        >
           Send
         </button>
       </div>

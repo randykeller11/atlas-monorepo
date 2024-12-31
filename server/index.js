@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
 const { instructions } = require("./instructions");
+const { formatting } = require("./formatting");
 require("dotenv").config();
 const path = require("path");
 const { users } = require("./users");
@@ -59,15 +60,23 @@ const sessions = new Map();
 // Initialize Assistant and Thread
 async function initializeAssistant() {
   try {
-    // Force reload the instructions module to get the latest version
+    // Force reload both modules to get the latest version
     delete require.cache[require.resolve("./instructions")];
+    delete require.cache[require.resolve("./formatting")];
     const { instructions } = require("./instructions");
-    console.log("Initializing assistant with instructions:", instructions);
+    const { formatting } = require("./formatting");
+
+    // Combine instructions with formatting
+    const combinedInstructions = instructions + formatting;
+    console.log(
+      "Initializing assistant with instructions:",
+      combinedInstructions
+    );
 
     // Step 1: Create an Assistant
     const assistant = await openai.beta.assistants.create({
       name: "Atlas Career Coach",
-      instructions,
+      instructions: combinedInstructions,
       tools: [{ type: "code_interpreter" }],
       model: "gpt-4",
     });
@@ -86,6 +95,28 @@ async function initializeAssistant() {
 }
 
 initializeAssistant();
+
+// Add this helper function
+const parseMultipleChoice = (text) => {
+  const mcRegex = /<mc>([\s\S]*?)<\/mc>/;
+  const match = text.match(mcRegex);
+
+  if (match) {
+    try {
+      const mcJson = JSON.parse(match[1]);
+      return {
+        text: text.replace(match[0], "").trim(),
+        type: "multiple_choice",
+        question: mcJson.question,
+        options: mcJson.options,
+      };
+    } catch (error) {
+      console.error("Error parsing multiple choice JSON:", error);
+      return { text, type: "text" };
+    }
+  }
+  return { text, type: "text" };
+};
 
 // Endpoint to handle messages from the client
 app.post("/api/message", async (req, res) => {
@@ -119,10 +150,9 @@ app.post("/api/message", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(threadId);
     const assistantResponse = messages.data[0].content[0].text.value;
 
-    res.json({
-      text: assistantResponse,
-      type: "text",
-    });
+    // Parse and format the response
+    const formattedResponse = parseMultipleChoice(assistantResponse);
+    res.json(formattedResponse);
   } catch (error) {
     console.error("Error handling message:", error.message, error.stack);
     res.status(500).json({
