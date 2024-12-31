@@ -253,14 +253,49 @@ const retryAssistantResponse = async (
   return null; // Return null if all retries failed
 };
 
-// Update sanitizeResponse to include format error context
-const sanitizeResponse = async (rawResponse, threadId) => {
+// Add a function to detect if response needs formatting
+const needsFormatting = (text) => {
+  // Check if this is a question that should be multiple choice
+  const questionPatterns = [
+    /what (?:would|do) you|which|choose|select|prefer/i,
+    /how would you like to|what interests you/i,
+    /tell me (about|more)/i,
+  ];
+
+  // Check if this is a conversational response that doesn't need formatting
+  const conversationalPatterns = [
+    /^(hi|hello|thanks|thank you|great|awesome)/i,
+    /^it'?s (great|nice|wonderful|amazing)/i,
+    /^(i see|interesting|got it)/i,
+  ];
+
+  // If it matches conversational patterns and doesn't contain a question, skip formatting
+  if (conversationalPatterns.some((pattern) => pattern.test(text.trim()))) {
+    const hasQuestion = text.includes("?");
+    if (!hasQuestion) {
+      console.log("Detected conversational response, skipping formatting");
+      return false;
+    }
+  }
+
+  // Check if the response contains a question that should be formatted
+  return questionPatterns.some((pattern) => pattern.test(text));
+};
+
+// Update sanitizeResponse with smarter handling
+const sanitizeResponse = async (rawResponse, threadId, timeoutMs = 45000) => {
   try {
     // First try to parse any structured content
     const parsedResponse = parseResponse(rawResponse);
 
     // If it's not a properly formatted response, attempt to fix it
     if (parsedResponse.type === "text") {
+      // Check if this response actually needs formatting
+      if (!needsFormatting(rawResponse)) {
+        console.log("Response does not require formatting, returning as text");
+        return parsedResponse;
+      }
+
       if (containsUnformattedList(rawResponse)) {
         console.log("Attempting to convert unformatted list to ranking format");
         return convertToRankingFormat(rawResponse);
@@ -274,14 +309,19 @@ const sanitizeResponse = async (rawResponse, threadId) => {
 
       // Log the attempt to get a new response
       console.log(
-        "Response not properly formatted, attempting to get new response from API"
+        "Response needs formatting, attempting to get new response from API"
       );
       logFormatError(rawResponse, {
         stage: "pre-retry",
         threadId: threadId,
+        needsFormatting: true,
       });
 
-      const retryResponse = await retryAssistantResponse(threadId, 2, 30000);
+      const retryResponse = await retryAssistantResponse(
+        threadId,
+        2,
+        timeoutMs
+      );
       if (retryResponse) {
         return retryResponse;
       }
@@ -299,6 +339,7 @@ const sanitizeResponse = async (rawResponse, threadId) => {
     logError("Response Sanitization", error, {
       rawResponse,
       threadId,
+      timeoutMs,
     });
     return createFallbackResponse();
   }
@@ -587,7 +628,7 @@ app.post("/api/message", async (req, res) => {
     const sanitizedResponse = await sanitizeResponse(
       assistantResponse,
       threadId,
-      35000
+      45000
     );
     console.log("Response sanitized successfully");
 
