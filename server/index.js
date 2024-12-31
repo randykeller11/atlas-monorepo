@@ -351,6 +351,27 @@ const convertToMultipleChoiceFormat = (text) => {
   };
 };
 
+// Add helper function to check and cancel active runs
+const checkAndCancelActiveRuns = async (threadId) => {
+  try {
+    const runs = await openai.beta.threads.runs.list(threadId);
+    const activeRuns = runs.data.filter((run) =>
+      ["in_progress", "queued"].includes(run.status)
+    );
+
+    for (const run of activeRuns) {
+      try {
+        await openai.beta.threads.runs.cancel(threadId, run.id);
+        console.log(`Cancelled active run ${run.id} for thread ${threadId}`);
+      } catch (error) {
+        console.error(`Error cancelling run ${run.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error(`Error checking active runs for thread ${threadId}:`, error);
+  }
+};
+
 // Endpoint to handle messages from the client
 app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
@@ -390,38 +411,61 @@ app.post("/api/message", async (req, res) => {
     const threadId = sessions.get(sessionId);
     const { message } = req.body;
 
+    // Check and cancel any active runs before proceeding
+    await checkAndCancelActiveRuns(threadId);
+
     // Set a longer timeout for the OpenAI operations
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Operation timed out")), 45000)
     );
 
     const responsePromise = (async () => {
-      const threadMessage = await openai.beta.threads.messages.create(
-        threadId,
-        {
-          role: "user",
-          content: message,
+      try {
+        const threadMessage = await openai.beta.threads.messages.create(
+          threadId,
+          {
+            role: "user",
+            content: message,
+          }
+        );
+
+        const run = await openai.beta.threads.runs.create(threadId, {
+          assistant_id: assistantId,
+        });
+
+        let runStatus = await openai.beta.threads.runs.retrieve(
+          threadId,
+          run.id
+        );
+        const startTime = Date.now();
+
+        while (runStatus.status !== "completed") {
+          if (Date.now() - startTime > 40000) {
+            // Try to cancel the run before throwing timeout
+            try {
+              await openai.beta.threads.runs.cancel(threadId, run.id);
+            } catch (cancelError) {
+              console.error("Error cancelling run:", cancelError);
+            }
+            throw new Error("Run timed out");
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+
+          // Check for failed or cancelled status
+          if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
+            throw new Error(
+              `Run ${run.id} ended with status: ${runStatus.status}`
+            );
+          }
         }
-      );
 
-      const run = await openai.beta.threads.runs.create(threadId, {
-        assistant_id: assistantId,
-      });
-
-      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      const startTime = Date.now();
-
-      while (runStatus.status !== "completed") {
-        if (Date.now() - startTime > 40000) {
-          // 40 second limit for the loop
-          throw new Error("Run timed out");
-        }
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+        const messages = await openai.beta.threads.messages.list(threadId);
+        return messages.data[0].content[0].text.value;
+      } catch (error) {
+        console.error("Error in responsePromise:", error);
+        throw error;
       }
-
-      const messages = await openai.beta.threads.messages.list(threadId);
-      return messages.data[0].content[0].text.value;
     })();
 
     // Race between timeout and response
