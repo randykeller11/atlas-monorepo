@@ -400,9 +400,22 @@ app.post("/api/message", async (req, res) => {
 });
 
 // Add a function to cleanup existing sessions
-const cleanupSessions = () => {
-  sessions.clear();
-  console.log("Cleared all active sessions");
+const cleanupSessions = async () => {
+  try {
+    for (const [sessionId, threadId] of sessions) {
+      try {
+        // Optionally delete the thread from OpenAI
+        // await openai.beta.threads.del(threadId);
+        console.log(`Cleaned up thread ${threadId} for session ${sessionId}`);
+      } catch (error) {
+        console.error(`Error cleaning up thread ${threadId}:`, error);
+      }
+    }
+    sessions.clear();
+    console.log("Cleared all active sessions");
+  } catch (error) {
+    console.error("Error in cleanup:", error);
+  }
 };
 
 // Update the /api/update-instructions endpoint
@@ -551,4 +564,24 @@ app.get("*", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Add reset endpoint
+app.post("/api/reset-session", async (req, res) => {
+  const sessionId = req.headers["session-id"];
+
+  try {
+    if (sessions.has(sessionId)) {
+      // Create a new thread for the session
+      const thread = await openai.beta.threads.create();
+      sessions.set(sessionId, thread.id);
+
+      console.log(`Reset session ${sessionId} with new thread ${thread.id}`);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error resetting session:", error);
+    res.status(500).json({ error: "Failed to reset session" });
+  }
 });

@@ -102,6 +102,32 @@ function AppContent() {
     }
   }, []);
 
+  // Add cleanup effect
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      try {
+        // Cleanup the session before page unload
+        await axios.post(
+          `${API_URL}/api/reset-session`,
+          {},
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+          }
+        );
+      } catch (error) {
+        console.error("Error cleaning up session:", error);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [sessionId]);
+
   const validateResponse = (response) => {
     if (!response?.text || response.text.trim() === "") {
       throw new Error("Empty response received");
