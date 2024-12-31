@@ -356,7 +356,7 @@ app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
 
   // Set response timeout to avoid Heroku H12 error
-  res.setTimeout(25000, () => {
+  res.setTimeout(55000, () => {
     res.status(503).json({
       error: "Operation timed out",
       type: "multiple_choice",
@@ -390,9 +390,9 @@ app.post("/api/message", async (req, res) => {
     const threadId = sessions.get(sessionId);
     const { message } = req.body;
 
-    // Set a shorter timeout for the OpenAI operations
+    // Set a longer timeout for the OpenAI operations
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Operation timed out")), 20000)
+      setTimeout(() => reject(new Error("Operation timed out")), 45000)
     );
 
     const responsePromise = (async () => {
@@ -412,8 +412,8 @@ app.post("/api/message", async (req, res) => {
       const startTime = Date.now();
 
       while (runStatus.status !== "completed") {
-        if (Date.now() - startTime > 15000) {
-          // 15 second limit for the loop
+        if (Date.now() - startTime > 40000) {
+          // 40 second limit for the loop
           throw new Error("Run timed out");
         }
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -430,11 +430,11 @@ app.post("/api/message", async (req, res) => {
       timeoutPromise,
     ]);
 
-    // Use the sanitizer with a shorter timeout
+    // Use the sanitizer with a longer timeout
     const sanitizedResponse = await sanitizeResponse(
       assistantResponse,
       threadId,
-      15000 // 15 second timeout for sanitization
+      35000 // 35 second timeout for sanitization
     );
 
     res.json(sanitizedResponse);
