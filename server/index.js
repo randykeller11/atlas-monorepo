@@ -457,6 +457,30 @@ app.post("/api/message", async (req, res) => {
     `\n[${new Date().toISOString()}] New message request from session ${sessionId}`
   );
 
+  // Set response timeout to avoid Heroku H12 error
+  res.setTimeout(55000, () => {
+    res.status(503).json({
+      error: "Operation timed out",
+      type: "multiple_choice",
+      text: "I'm taking longer than expected to process your request.",
+      question: "How would you like to proceed?",
+      options: [
+        {
+          id: "retry",
+          text: "Try sending your message again",
+        },
+        {
+          id: "rephrase",
+          text: "Rephrase your message",
+        },
+        {
+          id: "continue",
+          text: "Start a new conversation",
+        },
+      ],
+    });
+  });
+
   try {
     if (!sessions.has(sessionId)) {
       console.log(`Creating new thread for session ${sessionId}`);
@@ -471,6 +495,11 @@ app.post("/api/message", async (req, res) => {
 
     // Check and cancel any active runs before proceeding
     await checkAndCancelActiveRuns(threadId);
+
+    // Set a longer timeout for the OpenAI operations
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Operation timed out")), 45000)
+    );
 
     const responsePromise = (async () => {
       try {
