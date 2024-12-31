@@ -97,25 +97,262 @@ async function initializeAssistant() {
 initializeAssistant();
 
 // Add this helper function
-const parseMultipleChoice = (text) => {
-  const mcRegex = /<mc>([\s\S]*?)<\/mc>/;
-  const match = text.match(mcRegex);
+const parseResponse = (text) => {
+  // Check for ranking question
+  const rankRegex = /<rank>([\s\S]*?)<\/rank>/;
+  const rankMatch = text.match(rankRegex);
 
-  if (match) {
+  if (rankMatch) {
     try {
-      const mcJson = JSON.parse(match[1]);
+      const rankJson = JSON.parse(rankMatch[1]);
       return {
-        text: text.replace(match[0], "").trim(),
+        text: text.replace(rankMatch[0], "").trim(),
+        type: "ranking",
+        question: rankJson.question,
+        items: rankJson.items,
+        totalRanks: rankJson.totalRanks,
+      };
+    } catch (error) {
+      console.error("Error parsing ranking JSON:", error);
+    }
+  }
+
+  // Check for multiple choice
+  const mcRegex = /<mc>([\s\S]*?)<\/mc>/;
+  const mcMatch = text.match(mcRegex);
+
+  if (mcMatch) {
+    try {
+      const mcJson = JSON.parse(mcMatch[1]);
+      return {
+        text: text.replace(mcMatch[0], "").trim(),
         type: "multiple_choice",
         question: mcJson.question,
         options: mcJson.options,
       };
     } catch (error) {
       console.error("Error parsing multiple choice JSON:", error);
-      return { text, type: "text" };
     }
   }
+
   return { text, type: "text" };
+};
+
+// Add timeout utility function
+const waitWithTimeout = async (ms, timeoutMs = 10000) => {
+  return Promise.race([
+    new Promise((resolve) => setTimeout(resolve, ms)),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Operation timed out")), timeoutMs)
+    ),
+  ]);
+};
+
+// Update retry function with timeout
+const retryAssistantResponse = async (
+  threadId,
+  maxRetries = 2,
+  timeoutMs = 10000
+) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      console.log(`Starting retry attempt ${i + 1}/${maxRetries}`);
+
+      // Create a new run
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: assistantId,
+      });
+
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      const startTime = Date.now();
+
+      while (runStatus.status !== "completed") {
+        if (Date.now() - startTime > timeoutMs) {
+          throw new Error("Run timed out");
+        }
+
+        try {
+          await waitWithTimeout(1000, timeoutMs - (Date.now() - startTime));
+          runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+        } catch (error) {
+          if (error.message === "Operation timed out") {
+            throw new Error("Run timed out");
+          }
+          throw error;
+        }
+      }
+
+      const messages = await openai.beta.threads.messages.list(threadId);
+      const newResponse = messages.data[0].content[0].text.value;
+
+      // Try to parse the new response
+      const parsedResponse = parseResponse(newResponse);
+      if (parsedResponse.type !== "text") {
+        return parsedResponse; // Return if we got a properly formatted response
+      }
+
+      console.log(
+        `Retry attempt ${i + 1} failed to get properly formatted response`
+      );
+    } catch (error) {
+      console.error(`Retry attempt ${i + 1} failed:`, error);
+      if (error.message === "Run timed out") {
+        console.error("Retry attempt timed out, moving to next attempt");
+        continue;
+      }
+    }
+  }
+  return null; // Return null if all retries failed
+};
+
+// Update sanitizeResponse to use 30 second timeout
+const sanitizeResponse = async (rawResponse, threadId) => {
+  try {
+    // First try to parse any structured content
+    const parsedResponse = parseResponse(rawResponse);
+
+    // If it's not a properly formatted response, attempt to fix it
+    if (parsedResponse.type === "text") {
+      if (containsUnformattedList(rawResponse)) {
+        return convertToRankingFormat(rawResponse);
+      }
+      if (rawResponse.includes("A)") || rawResponse.includes("B)")) {
+        return convertToMultipleChoiceFormat(rawResponse);
+      }
+
+      // If we still don't have a proper format, try to get a new response
+      console.log("Attempting to get a new response from the API...");
+      const retryResponse = await retryAssistantResponse(threadId, 2, 30000); // Increased to 30 seconds
+      if (retryResponse) {
+        return retryResponse;
+      }
+    }
+
+    // Validate the parsed response
+    if (parsedResponse.type === "ranking") {
+      validateRankingResponse(parsedResponse);
+    } else if (parsedResponse.type === "multiple_choice") {
+      validateMultipleChoiceResponse(parsedResponse);
+    }
+
+    return parsedResponse;
+  } catch (error) {
+    console.error("Response sanitization failed:", error);
+    return createFallbackResponse();
+  }
+};
+
+const containsUnformattedList = (text) => {
+  // Check for numbered lists, bullet points, or lettered lists
+  return /(?:\d+\.|[A-Z]\)|•|-)\s+.+/gm.test(text);
+};
+
+const validateRankingResponse = (response) => {
+  if (
+    !response.items ||
+    !Array.isArray(response.items) ||
+    response.items.length !== 4
+  ) {
+    throw new Error("Invalid ranking response structure");
+  }
+
+  if (!response.totalRanks || response.totalRanks !== 4) {
+    response.totalRanks = 4;
+  }
+
+  // Ensure all items have required properties
+  response.items.forEach((item, index) => {
+    if (!item.id || !item.text) {
+      item.id = `item${index + 1}`;
+      item.text = item.text || `Option ${index + 1}`;
+    }
+  });
+};
+
+const validateMultipleChoiceResponse = (response) => {
+  if (
+    !response.options ||
+    !Array.isArray(response.options) ||
+    response.options.length < 1
+  ) {
+    throw new Error("Invalid multiple choice response structure");
+  }
+
+  // Ensure all options have required properties
+  response.options.forEach((option, index) => {
+    if (!option.id || !option.text) {
+      option.id = `option${index + 1}`;
+      option.text = option.text || `Option ${index + 1}`;
+    }
+  });
+};
+
+const convertToRankingFormat = (text) => {
+  // Extract items from numbered, lettered, or bulleted list
+  const items = text.match(/(?:\d+\.|[A-Z]\)|•|-)\s+(.+)/gm) || [];
+  // Split on any list marker
+  const conversationalText = text.split(/\d+\.|[A-Z]\)|•|-/)[0].trim();
+
+  // If we don't have enough items, try to extract from the text
+  if (items.length < 4) {
+    console.warn("Not enough list items found, attempting to parse text");
+    return createFallbackResponse();
+  }
+
+  // Create properly formatted ranking response
+  return {
+    text: conversationalText,
+    type: "ranking",
+    question: "Please rank these options in order of preference:",
+    items: items.slice(0, 4).map((item, index) => ({
+      id: `item${index + 1}`,
+      text: item.replace(/^\d+\.\s+|[A-Z]\)\s+|•\s+|-\s+/, "").trim(),
+    })),
+    totalRanks: 4,
+  };
+};
+
+const createFallbackResponse = () => {
+  return {
+    text: "I ran into an issue processing your response. How would you like me to proceed?",
+    type: "multiple_choice",
+    question: "How would you like to proceed?",
+    options: [
+      {
+        id: "retry",
+        text: "Please try asking your question again",
+      },
+      {
+        id: "rephrase",
+        text: "Let me rephrase my response differently",
+      },
+      {
+        id: "continue",
+        text: "Continue with our previous discussion",
+      },
+    ],
+  };
+};
+
+// Add new function to convert unformatted multiple choice to proper format
+const convertToMultipleChoiceFormat = (text) => {
+  const options = text.match(/[A-Z]\)\s+(.+?)(?=\n[A-Z]\)|\n*$)/gs) || [];
+  const conversationalText = text.split(/[A-Z]\)/)[0].trim();
+
+  if (options.length < 2) {
+    console.warn("Not enough multiple choice options found");
+    return createFallbackResponse();
+  }
+
+  return {
+    text: conversationalText,
+    type: "multiple_choice",
+    question: "Please select your preferred option:",
+    options: options.map((option, index) => ({
+      id: String.fromCharCode(97 + index), // converts 0 -> 'a', 1 -> 'b', etc.
+      text: option.replace(/^[A-Z]\)\s+/, "").trim(),
+    })),
+  };
 };
 
 // Endpoint to handle messages from the client
@@ -150,15 +387,15 @@ app.post("/api/message", async (req, res) => {
     const messages = await openai.beta.threads.messages.list(threadId);
     const assistantResponse = messages.data[0].content[0].text.value;
 
-    // Parse and format the response
-    const formattedResponse = parseMultipleChoice(assistantResponse);
-    res.json(formattedResponse);
+    // Use the sanitizer before sending the response, passing threadId for retries
+    const sanitizedResponse = await sanitizeResponse(
+      assistantResponse,
+      threadId
+    );
+    res.json(sanitizedResponse);
   } catch (error) {
     console.error("Error handling message:", error.message, error.stack);
-    res.status(500).json({
-      error: "Failed to process the message.",
-      details: error.message,
-    });
+    res.json(createFallbackResponse());
   }
 });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { HamburgerMenu, Dropdown } from '../App';
 
 // Define styles within the same file
@@ -137,9 +137,60 @@ const styles = {
     borderRadius: "6px",
     cursor: "not-allowed",
   },
+  rankingContainer: {
+    marginTop: '15px',
+  },
+  rankingItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '10px',
+    padding: '8px',
+    backgroundColor: '#f5f5f5',
+    borderRadius: '4px',
+  },
+  rankSelect: {
+    padding: '5px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+    minWidth: '60px',
+  },
+  rankLabel: {
+    flex: 1,
+  },
+  submitRanking: {
+    marginTop: '10px',
+    padding: '8px 16px',
+    backgroundColor: '#4a4a4a',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  }
 };
 
 const MultipleChoiceQuestion = ({ message, onSelect }) => {
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  const handleSelect = (optionId) => {
+    setSelectedOption(optionId);
+  };
+
+  const handleSubmit = () => {
+    if (selectedOption) {
+      // Find the selected option's text
+      const selectedText = message.options.find(opt => opt.id === selectedOption)?.text;
+      if (selectedText) {
+        onSelect({
+          target: {
+            value: selectedOption,
+            selectedText: selectedText // Pass the selected text
+          }
+        });
+      }
+    }
+  };
+
   return (
     <div style={styles.multipleChoice}>
       <div><strong>{message.question}</strong></div>
@@ -150,13 +201,93 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
               type="radio"
               name={`question-${message.question}`}
               value={option.id}
-              onChange={(e) => onSelect(e)}
+              checked={selectedOption === option.id}
+              onChange={() => handleSelect(option.id)}
               style={styles.radioInput}
             />
             {option.text}
           </label>
         ))}
       </div>
+      <button
+        style={styles.submitRanking}
+        onClick={handleSubmit}
+        disabled={!selectedOption}
+      >
+        Submit Choice
+      </button>
+    </div>
+  );
+};
+
+const RankingQuestion = ({ message, onSubmit }) => {
+  const [rankings, setRankings] = useState({});
+  
+  console.log('RankingQuestion received message:', message);
+  
+  // Add more detailed safety check
+  if (!message) {
+    console.error('Message is undefined');
+    return null;
+  }
+  
+  if (!message.items) {
+    console.error('Message items are undefined:', message);
+    return null;
+  }
+  
+  if (!Array.isArray(message.items)) {
+    console.error('Message items is not an array:', message.items);
+    return null;
+  }
+
+  const handleRankChange = (itemId, rank) => {
+    setRankings(prev => ({
+      ...prev,
+      [itemId]: rank
+    }));
+  };
+
+  const handleSubmit = () => {
+    // Convert rankings to formatted response
+    const rankedItems = Object.entries(rankings)
+      .map(([id, rank]) => ({
+        id,
+        rank: parseInt(rank),
+        text: message.items.find(item => item.id === id).text
+      }))
+      .sort((a, b) => a.rank - b.rank)
+      .map(item => item.text)
+      .join(", ");
+
+    onSubmit(`My ranking from most to least preferred: ${rankedItems}`);
+  };
+
+  return (
+    <div style={styles.rankingContainer}>
+      <div><strong>{message.question}</strong></div>
+      {message.items.map((item) => (
+        <div key={item.id} style={styles.rankingItem}>
+          <select
+            style={styles.rankSelect}
+            value={rankings[item.id] || ''}
+            onChange={(e) => handleRankChange(item.id, e.target.value)}
+          >
+            <option value="">-</option>
+            {[...Array(message.totalRanks)].map((_, i) => (
+              <option key={i + 1} value={i + 1}>{i + 1}</option>
+            ))}
+          </select>
+          <span style={styles.rankLabel}>{item.text}</span>
+        </div>
+      ))}
+      <button
+        style={styles.submitRanking}
+        onClick={handleSubmit}
+        disabled={Object.keys(rankings).length !== message.totalRanks}
+      >
+        Submit Ranking
+      </button>
     </div>
   );
 };
@@ -181,9 +312,11 @@ const Chat = ({
     }
   }, [conversation, loading]);
 
-  // Check if the last message is a multiple choice question
   const lastMessage = conversation[conversation.length - 1];
-  const showTextInput = !lastMessage?.type || lastMessage.type !== 'multiple_choice';
+  const showTextInput = lastMessage?.role === 'assistant' && 
+                     (!lastMessage.type || 
+                      (lastMessage.type !== 'multiple_choice' && 
+                       lastMessage.type !== 'ranking'));
 
   return (
     <div style={styles.container}>
@@ -213,6 +346,12 @@ const Chat = ({
               <MultipleChoiceQuestion
                 message={message}
                 onSelect={(e) => handleOptionSelect(e, index)}
+              />
+            )}
+            {message.type === 'ranking' && message.items && (
+              <RankingQuestion
+                message={message}
+                onSubmit={(response) => handleOptionSelect({ target: { value: response }}, index)}
               />
             )}
           </div>

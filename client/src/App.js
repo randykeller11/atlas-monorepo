@@ -151,6 +151,8 @@ function AppContent() {
         content: response.data.text,
         type: response.data.type,
         question: response.data.question,
+        items: response.data.items,
+        totalRanks: response.data.totalRanks,
         options: response.data.options,
       };
 
@@ -177,52 +179,114 @@ function AppContent() {
   const handleOptionSelect = async (e, messageIndex) => {
     const selectedOption = e.target.value;
     const question = conversation[messageIndex];
-    const selectedText = question.options.find(
-      (opt) => opt.id === selectedOption
-    )?.text;
 
-    const userMessage = {
-      role: "user",
-      content: selectedText,
-    };
+    // If it's a direct text response (from ranking)
+    if (
+      typeof selectedOption === "string" &&
+      !question.options &&
+      question.type === "ranking"
+    ) {
+      const userMessage = {
+        role: "user",
+        content: selectedOption,
+      };
 
-    setConversation((prev) => [...prev, userMessage]);
-    setLoading(true);
+      setConversation((prev) => [...prev, userMessage]);
+      setLoading(true);
 
-    try {
-      const response = await axios.post(
-        `${API_URL}/api/message`,
-        {
-          message: selectedText,
-        },
-        {
-          headers: {
-            "session-id": sessionId,
+      try {
+        const response = await axios.post(
+          `${API_URL}/api/message`,
+          {
+            message: selectedOption,
           },
-        }
-      );
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+          }
+        );
 
-      validateResponse(response.data);
+        validateResponse(response.data);
 
-      const assistantMessage = {
-        role: "assistant",
-        content: response.data.text,
-        type: response.data.type,
-        question: response.data.question,
-        options: response.data.options,
+        const assistantMessage = {
+          role: "assistant",
+          content: response.data.text,
+          type: response.data.type,
+          question: response.data.question,
+          items: response.data.items,
+          totalRanks: response.data.totalRanks,
+          options: response.data.options,
+        };
+
+        setConversation((prev) => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error("Error:", error);
+        const errorMessage = {
+          role: "assistant",
+          content:
+            "I apologize, but I'm having trouble generating a response. Please try again.",
+        };
+        setConversation((prev) => [...prev, errorMessage]);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Handle multiple choice selection
+      const selectedText =
+        e.target.selectedText ||
+        question.options?.find((opt) => opt.id === selectedOption)?.text;
+
+      if (!selectedText) {
+        console.error("Could not find selected option text");
+        return;
+      }
+
+      const userMessage = {
+        role: "user",
+        content: selectedText,
       };
 
-      setConversation((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Error:", error);
-      const errorMessage = {
-        role: "assistant",
-        content:
-          "I apologize, but I'm having trouble generating a response. Please try again.",
-      };
-      setConversation((prev) => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
+      setConversation((prev) => [...prev, userMessage]);
+      setLoading(true);
+
+      try {
+        const response = await axios.post(
+          `${API_URL}/api/message`,
+          {
+            message: selectedText,
+          },
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+          }
+        );
+
+        validateResponse(response.data);
+
+        const assistantMessage = {
+          role: "assistant",
+          content: response.data.text,
+          type: response.data.type,
+          question: response.data.question,
+          items: response.data.items,
+          totalRanks: response.data.totalRanks,
+          options: response.data.options,
+        };
+
+        setConversation((prev) => [...prev, assistantMessage]);
+      } catch (error) {
+        console.error("Error:", error);
+        const errorMessage = {
+          role: "assistant",
+          content:
+            "I apologize, but I'm having trouble generating a response. Please try again.",
+        };
+        setConversation((prev) => [...prev, errorMessage]);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
