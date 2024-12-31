@@ -92,7 +92,45 @@ async function initializeAssistant() {
 
 initializeAssistant();
 
-// Add this helper function
+// Add helper function to log response format issues
+const logFormatError = (response, context = {}) => {
+  console.error("\n=== Response Format Error ===");
+  console.error(`Timestamp: ${new Date().toISOString()}`);
+  console.error("Context:", context);
+  console.error("Raw Response:", response);
+
+  // Try to identify specific formatting issues
+  const formatIssues = [];
+
+  if (response.includes("<mc>") && !response.includes("</mc>")) {
+    formatIssues.push("Unclosed <mc> tag");
+  }
+  if (response.includes("<rank>") && !response.includes("</rank>")) {
+    formatIssues.push("Unclosed <rank> tag");
+  }
+
+  try {
+    // Check for valid JSON within tags
+    const mcMatch = response.match(/<mc>([\s\S]*?)<\/mc>/);
+    if (mcMatch) {
+      JSON.parse(mcMatch[1]);
+    }
+    const rankMatch = response.match(/<rank>([\s\S]*?)<\/rank>/);
+    if (rankMatch) {
+      JSON.parse(rankMatch[1]);
+    }
+  } catch (error) {
+    formatIssues.push(`Invalid JSON: ${error.message}`);
+  }
+
+  console.error(
+    "Format Issues:",
+    formatIssues.length ? formatIssues : "Unknown format issue"
+  );
+  console.error("==================\n");
+};
+
+// Update parseResponse to include format error logging
 const parseResponse = (text) => {
   // Check for ranking question
   const rankRegex = /<rank>([\s\S]*?)<\/rank>/;
@@ -109,7 +147,10 @@ const parseResponse = (text) => {
         totalRanks: rankJson.totalRanks,
       };
     } catch (error) {
-      console.error("Error parsing ranking JSON:", error);
+      logFormatError(text, {
+        attemptedFormat: "ranking",
+        parseError: error.message,
+      });
     }
   }
 
@@ -127,8 +168,19 @@ const parseResponse = (text) => {
         options: mcJson.options,
       };
     } catch (error) {
-      console.error("Error parsing multiple choice JSON:", error);
+      logFormatError(text, {
+        attemptedFormat: "multiple_choice",
+        parseError: error.message,
+      });
     }
+  }
+
+  // Log when no recognized format is found
+  if (!text.includes("<mc>") && !text.includes("<rank>")) {
+    logFormatError(text, {
+      issue: "No formatting tags found",
+      expectedTags: "<mc> or <rank>",
+    });
   }
 
   return { text, type: "text" };
@@ -201,7 +253,7 @@ const retryAssistantResponse = async (
   return null; // Return null if all retries failed
 };
 
-// Update sanitizeResponse to use 30 second timeout
+// Update sanitizeResponse to include format error context
 const sanitizeResponse = async (rawResponse, threadId) => {
   try {
     // First try to parse any structured content
@@ -210,15 +262,26 @@ const sanitizeResponse = async (rawResponse, threadId) => {
     // If it's not a properly formatted response, attempt to fix it
     if (parsedResponse.type === "text") {
       if (containsUnformattedList(rawResponse)) {
+        console.log("Attempting to convert unformatted list to ranking format");
         return convertToRankingFormat(rawResponse);
       }
       if (rawResponse.includes("A)") || rawResponse.includes("B)")) {
+        console.log(
+          "Attempting to convert unformatted multiple choice to proper format"
+        );
         return convertToMultipleChoiceFormat(rawResponse);
       }
 
-      // If we still don't have a proper format, try to get a new response
-      console.log("Attempting to get a new response from the API...");
-      const retryResponse = await retryAssistantResponse(threadId, 2, 30000); // Increased to 30 seconds
+      // Log the attempt to get a new response
+      console.log(
+        "Response not properly formatted, attempting to get new response from API"
+      );
+      logFormatError(rawResponse, {
+        stage: "pre-retry",
+        threadId: threadId,
+      });
+
+      const retryResponse = await retryAssistantResponse(threadId, 2, 30000);
       if (retryResponse) {
         return retryResponse;
       }
@@ -233,7 +296,10 @@ const sanitizeResponse = async (rawResponse, threadId) => {
 
     return parsedResponse;
   } catch (error) {
-    console.error("Response sanitization failed:", error);
+    logError("Response Sanitization", error, {
+      rawResponse,
+      threadId,
+    });
     return createFallbackResponse();
   }
 };
@@ -372,37 +438,28 @@ const checkAndCancelActiveRuns = async (threadId) => {
   }
 };
 
-// Endpoint to handle messages from the client
+// Add detailed logging helper
+const logError = (context, error, details = {}) => {
+  console.error("=== Error Details ===");
+  console.error(`Context: ${context}`);
+  console.error(`Timestamp: ${new Date().toISOString()}`);
+  console.error(`Error Message: ${error.message}`);
+  console.error(`Error Name: ${error.name}`);
+  console.error("Additional Details:", details);
+  console.error("Stack Trace:", error.stack);
+  console.error("==================\n");
+};
+
+// Update message endpoint with better logging
 app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
-
-  // Set response timeout to avoid Heroku H12 error
-  res.setTimeout(55000, () => {
-    res.status(503).json({
-      error: "Operation timed out",
-      type: "multiple_choice",
-      text: "I'm taking longer than expected to process your request.",
-      question: "How would you like to proceed?",
-      options: [
-        {
-          id: "retry",
-          text: "Try sending your message again",
-        },
-        {
-          id: "rephrase",
-          text: "Rephrase your message",
-        },
-        {
-          id: "continue",
-          text: "Start a new conversation",
-        },
-      ],
-    });
-  });
+  console.log(
+    `\n[${new Date().toISOString()}] New message request from session ${sessionId}`
+  );
 
   try {
-    // Create new thread if one doesn't exist for this session
     if (!sessions.has(sessionId)) {
+      console.log(`Creating new thread for session ${sessionId}`);
       const thread = await openai.beta.threads.create();
       sessions.set(sessionId, thread.id);
       console.log(`Created new thread ${thread.id} for session ${sessionId}`);
@@ -410,17 +467,14 @@ app.post("/api/message", async (req, res) => {
 
     const threadId = sessions.get(sessionId);
     const { message } = req.body;
+    console.log(`Processing message in thread ${threadId}:`, message);
 
     // Check and cancel any active runs before proceeding
     await checkAndCancelActiveRuns(threadId);
 
-    // Set a longer timeout for the OpenAI operations
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Operation timed out")), 45000)
-    );
-
     const responsePromise = (async () => {
       try {
+        console.log(`Creating message in thread ${threadId}`);
         const threadMessage = await openai.beta.threads.messages.create(
           threadId,
           {
@@ -428,64 +482,95 @@ app.post("/api/message", async (req, res) => {
             content: message,
           }
         );
+        console.log(`Message created with ID: ${threadMessage.id}`);
 
+        console.log(`Starting new run in thread ${threadId}`);
         const run = await openai.beta.threads.runs.create(threadId, {
           assistant_id: assistantId,
         });
+        console.log(`Run created with ID: ${run.id}`);
 
         let runStatus = await openai.beta.threads.runs.retrieve(
           threadId,
           run.id
         );
         const startTime = Date.now();
+        console.log(`Initial run status: ${runStatus.status}`);
 
         while (runStatus.status !== "completed") {
+          const elapsedTime = Date.now() - startTime;
+          console.log(
+            `Run ${run.id} status: ${runStatus.status}, elapsed time: ${elapsedTime}ms`
+          );
+
           if (Date.now() - startTime > 40000) {
-            // Try to cancel the run before throwing timeout
+            console.log(
+              `Run ${run.id} exceeded time limit, attempting cancellation`
+            );
             try {
               await openai.beta.threads.runs.cancel(threadId, run.id);
+              console.log(`Successfully cancelled run ${run.id}`);
             } catch (cancelError) {
-              console.error("Error cancelling run:", cancelError);
+              logError("Run Cancellation", cancelError, {
+                runId: run.id,
+                threadId,
+              });
             }
             throw new Error("Run timed out");
           }
+
           await new Promise((resolve) => setTimeout(resolve, 1000));
           runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
 
-          // Check for failed or cancelled status
           if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
+            logError(
+              "Run Status Error",
+              new Error(`Run ended with status: ${runStatus.status}`),
+              {
+                runId: run.id,
+                threadId,
+                status: runStatus.status,
+                lastError: runStatus.last_error,
+              }
+            );
             throw new Error(
               `Run ${run.id} ended with status: ${runStatus.status}`
             );
           }
         }
 
+        console.log(`Run ${run.id} completed successfully`);
         const messages = await openai.beta.threads.messages.list(threadId);
+        console.log(`Retrieved ${messages.data.length} messages from thread`);
         return messages.data[0].content[0].text.value;
       } catch (error) {
-        console.error("Error in responsePromise:", error);
+        logError("Response Promise", error, { threadId });
         throw error;
       }
     })();
 
-    // Race between timeout and response
     const assistantResponse = await Promise.race([
       responsePromise,
       timeoutPromise,
     ]);
+    console.log("Got response from assistant, sanitizing...");
 
-    // Use the sanitizer with a longer timeout
     const sanitizedResponse = await sanitizeResponse(
       assistantResponse,
       threadId,
-      35000 // 35 second timeout for sanitization
+      35000
     );
+    console.log("Response sanitized successfully");
 
     res.json(sanitizedResponse);
   } catch (error) {
-    console.error("Error handling message:", error.message, error.stack);
+    logError("Request Handler", error, {
+      sessionId,
+      threadId: sessions.get(sessionId),
+      messageType:
+        error.message === "Operation timed out" ? "timeout" : "error",
+    });
 
-    // Send a specific response for timeouts
     if (error.message === "Operation timed out") {
       res.status(503).json({
         type: "multiple_choice",
