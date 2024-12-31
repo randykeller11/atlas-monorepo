@@ -102,7 +102,6 @@ const Chat = ({
   setInput,
   handleKeyPress,
   sendMessage,
-  handleOptionSelect,
   menuRef,
   isMenuOpen,
   setIsMenuOpen

@@ -102,7 +102,14 @@ function AppContent() {
     }
   }, []);
 
-  const sendMessage = async (message) => {
+  const validateResponse = (response) => {
+    if (!response?.text || response.text.trim() === "") {
+      throw new Error("Empty response received");
+    }
+    return response;
+  };
+
+  const sendMessage = async (message, retryCount = 0) => {
     if (!input.trim()) return;
 
     const userMessage = {
@@ -127,12 +134,21 @@ function AppContent() {
         }
       );
 
+      try {
+        validateResponse(response.data);
+      } catch (error) {
+        if (retryCount < 3) {
+          console.log(`Retrying request (attempt ${retryCount + 1})`);
+          setLoading(true);
+          return sendMessage(message, retryCount + 1);
+        } else {
+          throw new Error("Maximum retry attempts exceeded");
+        }
+      }
+
       const assistantMessage = {
         role: "assistant",
         content: response.data.text,
-        type: response.data.type,
-        options: response.data.options,
-        question: response.data.question,
       };
 
       setConversation((prev) => [...prev, assistantMessage]);
@@ -140,7 +156,8 @@ function AppContent() {
       console.error("Error:", error);
       const errorMessage = {
         role: "assistant",
-        content: "Sorry, something went wrong.",
+        content:
+          "I apologize, but I'm having trouble generating a response. Please try again.",
       };
       setConversation((prev) => [...prev, errorMessage]);
     } finally {
@@ -151,58 +168,6 @@ function AppContent() {
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       sendMessage();
-    }
-  };
-
-  const handleOptionSelect = async (e, messageIndex) => {
-    const selectedOption = e.target.value;
-    const question = conversation[messageIndex];
-
-    // Find the selected option text
-    const selectedText = question.options.find(
-      (opt) => opt.id === selectedOption
-    )?.text;
-
-    // Send the selected answer
-    const userMessage = {
-      role: "user",
-      content: selectedText,
-    };
-
-    setConversation((prev) => [...prev, userMessage]);
-    setLoading(true);
-
-    try {
-      const response = await axios.post(
-        `${API_URL}/api/message`,
-        {
-          message: selectedText,
-        },
-        {
-          headers: {
-            "session-id": sessionId,
-          },
-        }
-      );
-
-      const assistantMessage = {
-        role: "assistant",
-        content: response.data.text,
-        type: response.data.type,
-        options: response.data.options,
-        question: response.data.question,
-      };
-
-      setConversation((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Error:", error);
-      const errorMessage = {
-        role: "assistant",
-        content: "Sorry, something went wrong.",
-      };
-      setConversation((prev) => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -219,7 +184,6 @@ function AppContent() {
             setInput={setInput}
             handleKeyPress={handleKeyPress}
             sendMessage={sendMessage}
-            handleOptionSelect={handleOptionSelect}
             menuRef={menuRef}
             isMenuOpen={isMenuOpen}
             setIsMenuOpen={setIsMenuOpen}
