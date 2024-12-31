@@ -359,6 +359,30 @@ const convertToMultipleChoiceFormat = (text) => {
 app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
 
+  // Set response timeout to avoid Heroku H12 error
+  res.setTimeout(25000, () => {
+    res.status(503).json({
+      error: "Operation timed out",
+      type: "multiple_choice",
+      text: "I'm taking longer than expected to process your request.",
+      question: "How would you like to proceed?",
+      options: [
+        {
+          id: "retry",
+          text: "Try sending your message again",
+        },
+        {
+          id: "rephrase",
+          text: "Rephrase your message",
+        },
+        {
+          id: "continue",
+          text: "Start a new conversation",
+        },
+      ],
+    });
+  });
+
   if (!sessions.has(sessionId)) {
     const thread = await openai.beta.threads.create();
     sessions.set(sessionId, thread.id);
@@ -368,34 +392,81 @@ app.post("/api/message", async (req, res) => {
   const { message } = req.body;
 
   try {
-    const threadMessage = await openai.beta.threads.messages.create(threadId, {
-      role: "user",
-      content: message,
-    });
+    // Set a shorter timeout for the OpenAI operations
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Operation timed out")), 20000)
+    );
 
-    const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: assistantId,
-    });
+    const responsePromise = (async () => {
+      const threadMessage = await openai.beta.threads.messages.create(
+        threadId,
+        {
+          role: "user",
+          content: message,
+        }
+      );
 
-    let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: assistantId,
+      });
 
-    while (runStatus.status !== "completed") {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-    }
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      const startTime = Date.now();
 
-    const messages = await openai.beta.threads.messages.list(threadId);
-    const assistantResponse = messages.data[0].content[0].text.value;
+      while (runStatus.status !== "completed") {
+        if (Date.now() - startTime > 15000) {
+          // 15 second limit for the loop
+          throw new Error("Run timed out");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      }
 
-    // Use the sanitizer before sending the response, passing threadId for retries
+      const messages = await openai.beta.threads.messages.list(threadId);
+      return messages.data[0].content[0].text.value;
+    })();
+
+    // Race between timeout and response
+    const assistantResponse = await Promise.race([
+      responsePromise,
+      timeoutPromise,
+    ]);
+
+    // Use the sanitizer with a shorter timeout
     const sanitizedResponse = await sanitizeResponse(
       assistantResponse,
-      threadId
+      threadId,
+      15000 // 15 second timeout for sanitization
     );
+
     res.json(sanitizedResponse);
   } catch (error) {
     console.error("Error handling message:", error.message, error.stack);
-    res.json(createFallbackResponse());
+
+    // Send a specific response for timeouts
+    if (error.message === "Operation timed out") {
+      res.status(503).json({
+        type: "multiple_choice",
+        text: "I'm taking longer than expected to process your request.",
+        question: "How would you like to proceed?",
+        options: [
+          {
+            id: "retry",
+            text: "Try sending your message again",
+          },
+          {
+            id: "rephrase",
+            text: "Rephrase your message",
+          },
+          {
+            id: "continue",
+            text: "Start a new conversation",
+          },
+        ],
+      });
+    } else {
+      res.json(createFallbackResponse());
+    }
   }
 });
 

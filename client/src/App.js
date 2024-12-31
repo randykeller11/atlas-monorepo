@@ -157,20 +157,9 @@ function AppContent() {
           headers: {
             "session-id": sessionId,
           },
+          timeout: 25000, // 25 second timeout
         }
       );
-
-      try {
-        validateResponse(response.data);
-      } catch (error) {
-        if (retryCount < 3) {
-          console.log(`Retrying request (attempt ${retryCount + 1})`);
-          setLoading(true);
-          return sendMessage(message, retryCount + 1);
-        } else {
-          throw new Error("Maximum retry attempts exceeded");
-        }
-      }
 
       const assistantMessage = {
         role: "assistant",
@@ -185,12 +174,30 @@ function AppContent() {
       setConversation((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = {
+
+      // Handle timeout specifically
+      const timeoutMessage = {
         role: "assistant",
-        content:
-          "I apologize, but I'm having trouble generating a response. Please try again.",
+        type: "multiple_choice",
+        content: "I'm taking longer than expected to process your request.",
+        question: "How would you like to proceed?",
+        options: [
+          {
+            id: "retry",
+            text: "Try sending your message again",
+          },
+          {
+            id: "rephrase",
+            text: "Rephrase your message",
+          },
+          {
+            id: "continue",
+            text: "Start a new conversation",
+          },
+        ],
       };
-      setConversation((prev) => [...prev, errorMessage]);
+
+      setConversation((prev) => [...prev, timeoutMessage]);
     } finally {
       setLoading(false);
     }
