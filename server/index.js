@@ -52,7 +52,9 @@ const openai = new OpenAI({
 
 // Global variables for assistant and thread
 let assistantId = null;
-let threadId = null;
+
+// Add a Map to store assistant IDs for different environments
+const assistants = new Map();
 
 // Add session management
 const sessions = new Map();
@@ -73,22 +75,16 @@ async function initializeAssistant() {
       combinedInstructions
     );
 
-    // Step 1: Create an Assistant
+    // Create an Assistant
     const assistant = await openai.beta.assistants.create({
       name: "Atlas Career Coach",
       instructions: combinedInstructions,
       tools: [{ type: "code_interpreter" }],
       model: "gpt-4",
     });
+
     assistantId = assistant.id;
     console.log("Assistant created with ID:", assistantId);
-
-    // Step 2: Create a Thread
-    const thread = await openai.beta.threads.create();
-    threadId = thread.id;
-    console.log("Thread created with ID:", threadId);
-
-    console.log("Assistant and thread initialized successfully.");
   } catch (error) {
     console.error("Error initializing assistant:", error);
   }
@@ -383,15 +379,17 @@ app.post("/api/message", async (req, res) => {
     });
   });
 
-  if (!sessions.has(sessionId)) {
-    const thread = await openai.beta.threads.create();
-    sessions.set(sessionId, thread.id);
-  }
-
-  const threadId = sessions.get(sessionId);
-  const { message } = req.body;
-
   try {
+    // Create new thread if one doesn't exist for this session
+    if (!sessions.has(sessionId)) {
+      const thread = await openai.beta.threads.create();
+      sessions.set(sessionId, thread.id);
+      console.log(`Created new thread ${thread.id} for session ${sessionId}`);
+    }
+
+    const threadId = sessions.get(sessionId);
+    const { message } = req.body;
+
     // Set a shorter timeout for the OpenAI operations
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Operation timed out")), 20000)
@@ -475,8 +473,7 @@ const cleanupSessions = async () => {
   try {
     for (const [sessionId, threadId] of sessions) {
       try {
-        // Optionally delete the thread from OpenAI
-        // await openai.beta.threads.del(threadId);
+        await openai.beta.threads.del(threadId);
         console.log(`Cleaned up thread ${threadId} for session ${sessionId}`);
       } catch (error) {
         console.error(`Error cleaning up thread ${threadId}:`, error);
