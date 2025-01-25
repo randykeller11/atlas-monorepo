@@ -5,6 +5,25 @@ import { HamburgerMenu, Dropdown } from '../App';
 const styles = {
   container: {
     maxWidth: "800px",
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: '10px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '5px',
+    margin: '10px 0',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: '5px',
+    transition: 'width 0.3s ease',
+  },
+  questionCounter: {
+    textAlign: 'right',
+    fontSize: '14px',
+    color: '#666',
+    marginBottom: '5px',
     margin: "0 auto",
     padding: "20px",
     backgroundColor: "#e6e6e6",  // Light gray background
@@ -302,7 +321,9 @@ const Chat = ({
   handleOptionSelect,
   menuRef,
   isMenuOpen,
-  setIsMenuOpen
+  setIsMenuOpen,
+  questionCount,
+  maxQuestions = 20
 }) => {
   const chatWindowRef = useRef(null);
 
@@ -321,6 +342,17 @@ const Chat = ({
   return (
     <div style={styles.container}>
       <div style={styles.header}>
+        <div style={styles.questionCounter}>
+          Question {questionCount} of {maxQuestions}
+        </div>
+        <div style={styles.progressBarContainer}>
+          <div 
+            style={{
+              ...styles.progressBar,
+              width: `${(questionCount / maxQuestions) * 100}%`
+            }}
+          />
+        </div>
         <div style={styles.headerLeft}>
           <div ref={menuRef} style={styles.menuContainer}>
             <HamburgerMenu

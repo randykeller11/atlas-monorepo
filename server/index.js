@@ -492,11 +492,94 @@ const logError = (context, error, details = {}) => {
 };
 
 // Update message endpoint with better logging
+const parseSummaryResponse = (text) => {
+  try {
+    const sections = {
+      roleMatches: [],
+      salaryRanges: [],
+      recommendedCourses: [],
+      portfolioSuggestions: [],
+      networkingOpportunities: [],
+      careerRoadmap: '',
+    };
+    
+    // Extract role matches
+    const roleMatchRegex = /(\d+)%\s+match:\s+([\w\s]+)/g;
+    let match;
+    while ((match = roleMatchRegex.exec(text)) !== null) {
+      sections.roleMatches.push({
+        match: parseInt(match[1]),
+        title: match[2].trim()
+      });
+    }
+
+    // Extract salary ranges
+    const salaryRegex = /([\w\s]+):\s+\$[\d,]+\s*-\s*\$[\d,]+/g;
+    while ((match = salaryRegex.exec(text)) !== null) {
+      sections.salaryRanges.push({
+        role: match[1].trim(),
+        range: match[0].split(':')[1].trim()
+      });
+    }
+
+    // Extract courses
+    const coursesMatch = text.match(/Recommended courses:(.*?)(?=Portfolio|$)/s);
+    if (coursesMatch) {
+      sections.recommendedCourses = coursesMatch[1].trim().split('\n')
+        .map(course => course.trim())
+        .filter(course => course.length > 0);
+    }
+
+    // Extract portfolio suggestions
+    const portfolioMatch = text.match(/Portfolio suggestions:(.*?)(?=Networking|$)/s);
+    if (portfolioMatch) {
+      sections.portfolioSuggestions = portfolioMatch[1].trim().split('\n')
+        .map(suggestion => suggestion.trim())
+        .filter(suggestion => suggestion.length > 0);
+    }
+
+    // Extract networking opportunities
+    const networkingMatch = text.match(/Networking opportunities:(.*?)(?=Career|$)/s);
+    if (networkingMatch) {
+      sections.networkingOpportunities = networkingMatch[1].trim().split('\n')
+        .map(opportunity => opportunity.trim())
+        .filter(opportunity => opportunity.length > 0);
+    }
+
+    // Extract career roadmap
+    const roadmapMatch = text.match(/Career roadmap:(.*?)$/s);
+    if (roadmapMatch) {
+      sections.careerRoadmap = roadmapMatch[1].trim();
+    }
+
+    return sections;
+  } catch (error) {
+    console.error('Error parsing summary:', error);
+    return null;
+  }
+};
+
 app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
+  const { message } = req.body;
+  
   console.log(
     `\n[${new Date().toISOString()}] New message request from session ${sessionId}`
   );
+
+  // Check if this is a summary request
+  if (message.includes('Please provide a comprehensive summary')) {
+    try {
+      const response = await getAssistantResponse(threadId, message);
+      const parsedSummary = parseSummaryResponse(response);
+      res.json(parsedSummary);
+      return;
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      res.status(500).json({ error: 'Failed to generate summary' });
+      return;
+    }
+  }
 
   // Set response timeout to avoid Heroku H12 error
   res.setTimeout(55000, () => {
