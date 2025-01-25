@@ -352,7 +352,7 @@ const Chat = ({
   isMenuOpen,
   setIsMenuOpen,
   questionCount,
-  maxQuestions = 20
+  maxQuestions = 5
 }) => {
   const chatWindowRef = useRef(null);
 
