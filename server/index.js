@@ -397,58 +397,45 @@ const sanitizeResponse = async (rawResponse, threadId, timeoutMs = 45000) => {
     const parsedResponse = parseResponse(rawResponse);
 
     // If it's not a properly formatted response, attempt to fix it
-    if (parsedResponse.type === "text") {
-      // Check if this response actually needs formatting
-      if (!needsFormatting(rawResponse)) {
-        console.log("Response does not require formatting, returning as text");
-        return parsedResponse;
+    if (parsedResponse.type === 'text') {
+      const detectedType = detectQuestionType(rawResponse);
+      
+      if (detectedType === 'multiple_choice') {
+        const options = extractOptions(rawResponse);
+        const question = extractQuestion(rawResponse);
+        
+        if (options.length > 0) {
+          return {
+            text: rawResponse.split('?')[0] + '?',
+            type: 'multiple_choice',
+            question: question,
+            options: options
+          };
+        }
+      } else if (detectedType === 'ranking') {
+        const items = extractOptions(rawResponse);
+        if (items.length >= 2) {
+          return {
+            text: rawResponse.split(/(?:rank|order|prioritize)/i)[0].trim(),
+            type: 'ranking',
+            question: 'Please rank these options in order of preference:',
+            items: items,
+            totalRanks: items.length
+          };
+        }
       }
 
-      if (containsUnformattedList(rawResponse)) {
-        console.log("Attempting to convert unformatted list to ranking format");
-        return convertToRankingFormat(rawResponse);
+      // If we still need formatting, try to get a new response
+      if (needsFormatting(rawResponse)) {
+        console.log('Attempting to get properly formatted response from API');
+        const retryResponse = await retryAssistantResponse(threadId, 2, timeoutMs);
+        if (retryResponse) return retryResponse;
       }
-      if (rawResponse.includes("A)") || rawResponse.includes("B)")) {
-        console.log(
-          "Attempting to convert unformatted multiple choice to proper format"
-        );
-        return convertToMultipleChoiceFormat(rawResponse);
-      }
-
-      // Log the attempt to get a new response
-      console.log(
-        "Response needs formatting, attempting to get new response from API"
-      );
-      logFormatError(rawResponse, {
-        stage: "pre-retry",
-        threadId: threadId,
-        needsFormatting: true,
-      });
-
-      const retryResponse = await retryAssistantResponse(
-        threadId,
-        2,
-        timeoutMs
-      );
-      if (retryResponse) {
-        return retryResponse;
-      }
-    }
-
-    // Validate the parsed response
-    if (parsedResponse.type === "ranking") {
-      validateRankingResponse(parsedResponse);
-    } else if (parsedResponse.type === "multiple_choice") {
-      validateMultipleChoiceResponse(parsedResponse);
     }
 
     return parsedResponse;
   } catch (error) {
-    logError("Response Sanitization", error, {
-      rawResponse,
-      threadId,
-      timeoutMs,
-    });
+    console.error('Sanitization error:', error);
     return createFallbackResponse();
   }
 };
