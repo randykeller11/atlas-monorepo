@@ -11,12 +11,16 @@ const styles = {
     display: "flex",
     flexDirection: "column",
   },
-  chatProgressWrapper: {
+  mainContent: {
     display: "flex",
     flex: 1,
     gap: "20px",
-    position: "relative",
-    marginBottom: "20px", // Add margin to maintain space above input
+    marginBottom: "20px",
+  },
+  chatContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
   },
   progressSection: {
     width: "30px",
@@ -25,7 +29,6 @@ const styles = {
     alignItems: "center",
     justifyContent: "flex-start",
     padding: "10px 0",
-    marginLeft: "10px", // Add some space between chat and progress bar
   },
   progressBarContainer: {
     width: '10px',
@@ -55,12 +58,12 @@ const styles = {
     flex: 1,
     border: "1px solid #cccccc",
     padding: "10px",
-    height: "calc(100vh - 200px)", // Adjust height to account for header and input
+    height: "calc(100vh - 200px)",
     minHeight: "400px",
     overflowY: "scroll",
     backgroundColor: "#f5f5f5",
     borderRadius: "8px",
-    width: "calc(100% - 50px)", // Account for progress bar width
+    marginBottom: "20px",
   },
   message: {
     marginBottom: "10px",
@@ -73,8 +76,7 @@ const styles = {
   inputArea: {
     display: "flex",
     gap: "10px",
-    width: "calc(100% - 50px)", // Match chatWindow width
-    marginRight: "50px", // Account for progress bar space
+    width: "100%",
   },
   input: {
     flex: "1",
@@ -386,49 +388,37 @@ const Chat = ({
         />
       </div>
 
-      <div style={styles.chatProgressWrapper}>
-        <div ref={chatWindowRef} style={styles.chatWindow}>
-        {conversation.map((message, index) => (
-          <div key={index} style={styles.message}>
-            <strong>{message.role === "assistant" ? "Atlas: " : "You: "}</strong>
-            {message.content}
-            {message.type === 'multiple_choice' && (
-              <MultipleChoiceQuestion
-                message={message}
-                onSelect={(e) => handleOptionSelect(e, index)}
-              />
+      <div style={styles.mainContent}>
+        <div style={styles.chatContainer}>
+          <div ref={chatWindowRef} style={styles.chatWindow}>
+            {conversation.map((message, index) => (
+              <div key={index} style={styles.message}>
+                <strong>{message.role === "assistant" ? "Atlas: " : "You: "}</strong>
+                {message.content}
+                {message.type === 'multiple_choice' && (
+                  <MultipleChoiceQuestion
+                    message={message}
+                    onSelect={(e) => handleOptionSelect(e, index)}
+                  />
+                )}
+                {message.type === 'ranking' && message.items && (
+                  <RankingQuestion
+                    message={message}
+                    onSubmit={(response) => handleOptionSelect({ target: { value: response }}, index)}
+                  />
+                )}
+              </div>
+            ))}
+            {loading && (
+              <div style={styles.loadingContainer}>
+                <div style={styles.loadingDot}></div>
+                <div style={styles.loadingDot}></div>
+                <div style={styles.loadingDot}></div>
+              </div>
             )}
-            {message.type === 'ranking' && message.items && (
-              <RankingQuestion
-                message={message}
-                onSubmit={(response) => handleOptionSelect({ target: { value: response }}, index)}
-              />
-            )}
           </div>
-        ))}
-        {loading && (
-          <div style={styles.loadingContainer}>
-            <div style={styles.loadingDot}></div>
-            <div style={styles.loadingDot}></div>
-            <div style={styles.loadingDot}></div>
-          </div>
-        )}
-      </div>
-        <div style={styles.progressSection}>
-          <div style={styles.questionCounter}>
-            Question {questionCount} of {maxQuestions}
-          </div>
-          <div style={styles.progressBarContainer}>
-            <div 
-              style={{
-                ...styles.progressBar,
-                height: `${(questionCount / maxQuestions) * 100}%`
-              }}
-            />
-          </div>
-        </div>
-      </div>
-      <div style={styles.inputArea}>
+          
+          <div style={styles.inputArea}>
         <input
           type="text"
           value={input}
@@ -445,6 +435,22 @@ const Chat = ({
         >
           Send
         </button>
+          </div>
+        </div>
+
+        <div style={styles.progressSection}>
+          <div style={styles.questionCounter}>
+            Question {questionCount} of {maxQuestions}
+          </div>
+          <div style={styles.progressBarContainer}>
+            <div 
+              style={{
+                ...styles.progressBar,
+                height: `${(questionCount / maxQuestions) * 100}%`
+              }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
