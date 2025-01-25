@@ -1,71 +1,122 @@
-# Getting Started with Create React App
+# Atlas Career Coach
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Atlas Career Coach is an interactive career guidance application that helps users discover potential careers in technology based on their interests, skills, and preferences. The application uses AI-powered conversations to provide personalized career recommendations.
 
-## Available Scripts
+## Project Structure
 
-In the project directory, you can run:
+The project is organized as a monorepo with two main components:
 
-### `npm start`
+```
+atlas-monorepo/
+├── client/           # React frontend application
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Admin.jsx    # Admin panel for managing instructions
+│   │   │   └── Chat.jsx     # Main chat interface component
+│   │   ├── App.js          # Main application component
+│   │   └── config.js       # Configuration settings
+│   └── public/
+└── server/           # Express.js backend application
+    ├── index.js      # Main server file
+    └── instructions.js # Chat instructions configuration
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Features
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- Interactive AI-powered chat interface
+- Multiple choice and ranking questions
+- Dynamic conversation flow based on user responses
+- Admin panel for customizing chat instructions
+- Secure authentication for admin access
+- Responsive design for various screen sizes
 
-### `npm test`
+## Technology Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Frontend:
+  - React
+  - Axios for API calls
+  - CSS-in-JS styling
+  
+- Backend:
+  - Express.js
+  - OpenAI API integration
+  - Environment-based configuration
+  - Session management
 
-### `npm run build`
+## Getting Started
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Prerequisites
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Node.js (v14 or higher)
+- npm or yarn
+- OpenAI API key
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Installation
 
-### `npm run eject`
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/atlas-monorepo.git
+cd atlas-monorepo
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+2. Install dependencies for both client and server:
+```bash
+# Install client dependencies
+cd client
+npm install
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Install server dependencies
+cd ../server
+npm install
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+3. Create a `.env` file in the server directory with your OpenAI API key:
+```
+OPENAI_API_KEY=your_api_key_here
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Running the Application
 
-## Learn More
+1. Start the server (from the server directory):
+```bash
+npm start
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+2. Start the client (from the client directory):
+```bash
+npm start
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The application will be available at http://localhost:3000, with the server running on port 5001.
 
-### Code Splitting
+## Development
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Environment Configuration
 
-### Analyzing the Bundle Size
+The application supports different environments through the `config.js` file:
+- Development: API calls to `localhost:5001`
+- Production: API calls to the deployed server URL
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Admin Access
 
-### Making a Progressive Web App
+The admin panel is available at `/admin` and requires authentication. Use the provided admin credentials to access the panel.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Deployment
 
-### Advanced Configuration
+The application is configured for deployment on Heroku. The production build process:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+1. Builds the React client application
+2. Serves the static files through the Express.js server
+3. Uses environment variables for configuration
 
-### Deployment
+## Contributing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### `npm run build` fails to minify
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-# atlas-monorepo
+This project is licensed under the MIT License - see the LICENSE file for details.
