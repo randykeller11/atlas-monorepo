@@ -5,13 +5,21 @@ import { HamburgerMenu, Dropdown } from '../App';
 const styles = {
   container: {
     maxWidth: "800px",
+    margin: "0 auto",
+    padding: "20px",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+  },
+  progressSection: {
+    marginBottom: "20px",
   },
   progressBarContainer: {
     width: '100%',
     height: '10px',
     backgroundColor: '#e0e0e0',
     borderRadius: '5px',
-    margin: '10px 0',
+    margin: '5px 0',
   },
   progressBar: {
     height: '100%',
@@ -24,18 +32,16 @@ const styles = {
     fontSize: '14px',
     color: '#666',
     marginBottom: '5px',
-    margin: "0 auto",
-    padding: "20px",
-    backgroundColor: "#e6e6e6",  // Light gray background
-    minHeight: "100vh",
   },
   chatWindow: {
+    flex: 1,
     border: "1px solid #cccccc",
     padding: "10px",
-    height: "400px",
+    height: "calc(100vh - 300px)",
+    minHeight: "400px",
     overflowY: "scroll",
     marginBottom: "10px",
-    backgroundColor: "#f5f5f5",  // Slightly lighter than container
+    backgroundColor: "#f5f5f5",
     borderRadius: "8px",
   },
   message: {
@@ -342,17 +348,6 @@ const Chat = ({
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.questionCounter}>
-          Question {questionCount} of {maxQuestions}
-        </div>
-        <div style={styles.progressBarContainer}>
-          <div 
-            style={{
-              ...styles.progressBar,
-              width: `${(questionCount / maxQuestions) * 100}%`
-            }}
-          />
-        </div>
         <div style={styles.headerLeft}>
           <div ref={menuRef} style={styles.menuContainer}>
             <HamburgerMenu
@@ -368,6 +363,20 @@ const Chat = ({
           alt="Nucoord Logo"
           style={styles.logo}
         />
+      </div>
+
+      <div style={styles.progressSection}>
+        <div style={styles.questionCounter}>
+          Question {questionCount} of {maxQuestions}
+        </div>
+        <div style={styles.progressBarContainer}>
+          <div 
+            style={{
+              ...styles.progressBar,
+              width: `${(questionCount / maxQuestions) * 100}%`
+            }}
+          />
+        </div>
       </div>
       <div ref={chatWindowRef} style={styles.chatWindow}>
         {conversation.map((message, index) => (
