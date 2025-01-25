@@ -16,6 +16,7 @@ const styles = {
     flex: 1,
     gap: "20px",
     position: "relative",
+    marginBottom: "20px", // Add margin to maintain space above input
   },
   progressSection: {
     width: "30px",
@@ -24,10 +25,11 @@ const styles = {
     alignItems: "center",
     justifyContent: "flex-start",
     padding: "10px 0",
+    marginLeft: "10px", // Add some space between chat and progress bar
   },
   progressBarContainer: {
     width: '10px',
-    height: 'calc(100vh - 300px)',
+    height: 'calc(100vh - 200px)', // Match chatWindow height
     backgroundColor: '#e0e0e0',
     borderRadius: '5px',
     position: "relative",
@@ -53,12 +55,12 @@ const styles = {
     flex: 1,
     border: "1px solid #cccccc",
     padding: "10px",
-    height: "calc(100vh - 300px)",
+    height: "calc(100vh - 200px)", // Adjust height to account for header and input
     minHeight: "400px",
     overflowY: "scroll",
-    marginBottom: "10px",
     backgroundColor: "#f5f5f5",
     borderRadius: "8px",
+    width: "calc(100% - 50px)", // Account for progress bar width
   },
   message: {
     marginBottom: "10px",
@@ -71,6 +73,8 @@ const styles = {
   inputArea: {
     display: "flex",
     gap: "10px",
+    width: "calc(100% - 50px)", // Match chatWindow width
+    marginRight: "50px", // Account for progress bar space
   },
   input: {
     flex: "1",
@@ -81,6 +85,7 @@ const styles = {
     borderRadius: "6px",
     color: "#000000",
     outline: "none",
+    width: "100%", // Ensure input takes full width of container
   },
   button: {
     padding: "10px 20px",
