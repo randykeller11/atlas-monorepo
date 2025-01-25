@@ -92,6 +92,114 @@ async function initializeAssistant() {
 
 initializeAssistant();
 
+// Add helper functions for response parsing and formatting
+const detectQuestionType = (text) => {
+  // Check for explicit formatting first
+  if (text.includes('<mc>')) return 'multiple_choice';
+  if (text.includes('<rank>')) return 'ranking';
+
+  // Check for common multiple choice patterns
+  const mcPatterns = [
+    /[A-Z]\)\s+.+/gm,  // A) Option
+    /[A-Z]\.\s+.+/gm,  // A. Option
+    /Option [A-Z]:/gm,  // Option A:
+    /\d+\)\s+.+/gm,    // 1) Option
+    /\(\s*[A-Z]\s*\)/gm // (A)
+  ];
+
+  // Check for ranking patterns
+  const rankPatterns = [
+    /rank.*following/i,
+    /order.*preference/i,
+    /prioritize.*following/i,
+    /from most to least/i
+  ];
+
+  // Look for bullet points or numbered lists
+  const listPatterns = [
+    /(?:\d+\.|[A-Z]\)|•|-)\s+.+/gm,
+    /^\s*[-•]\s+.+/gm
+  ];
+
+  // Check if it contains a question
+  const hasQuestion = text.includes('?');
+  
+  // If it has multiple choice patterns and a question
+  if (mcPatterns.some(pattern => pattern.test(text)) && hasQuestion) {
+    return 'multiple_choice';
+  }
+
+  // If it has ranking patterns and lists
+  if (rankPatterns.some(pattern => pattern.test(text)) && 
+      listPatterns.some(pattern => pattern.test(text))) {
+    return 'ranking';
+  }
+
+  return 'text';
+};
+
+const extractOptions = (text) => {
+  const options = [];
+  let match;
+
+  // Try different patterns to extract options
+  const patterns = [
+    /([A-Z])\)\s*([^A-Z\n]+)/g,
+    /([A-Z])\.\s*([^A-Z\n]+)/g,
+    /Option\s+([A-Z]):\s*([^A-Z\n]+)/g,
+    /(\d+)\)\s*([^\d\n]+)/g
+  ];
+
+  for (const pattern of patterns) {
+    while ((match = pattern.exec(text)) !== null) {
+      options.push({
+        id: match[1].toLowerCase(),
+        text: match[2].trim()
+      });
+    }
+    if (options.length > 0) break;
+  }
+
+  // If no options found, try bullet points or dashes
+  if (options.length === 0) {
+    const bulletPattern = /(?:•|-)\s+([^\n•-]+)/g;
+    let id = 'a';
+    while ((match = bulletPattern.exec(text)) !== null) {
+      options.push({
+        id: id,
+        text: match[1].trim()
+      });
+      id = String.fromCharCode(id.charCodeAt(0) + 1);
+    }
+  }
+
+  return options;
+};
+
+const extractQuestion = (text) => {
+  // Look for the last question mark in the text
+  const questionParts = text.split('?');
+  if (questionParts.length > 1) {
+    // Take the last question and its context
+    const lastQuestion = questionParts.slice(-2).join('?') + '?';
+    return lastQuestion.trim();
+  }
+  
+  // If no question mark, look for common question patterns
+  const patterns = [
+    /(?:please|kindly)\s+(?:select|choose|pick|indicate).+/i,
+    /(?:which|what)\s+(?:of\s+the\s+following|option).+/i,
+    /(?:select|choose)\s+(?:one|an?\s+option).+/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[0].trim();
+  }
+
+  return 'Please select an option:';
+};
+
 // Add helper function to log response format issues
 const logFormatError = (response, context = {}) => {
   console.error("\n=== Response Format Error ===");
