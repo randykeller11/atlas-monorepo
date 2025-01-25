@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import Admin from "./components/Admin";
 import Chat from "./components/Chat";
+import Results from "./components/Results";
 import config from "./config";
 
 const { API_URL } = config;
@@ -71,6 +72,9 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [assessmentSummary, setAssessmentSummary] = useState(null);
+  const [questionCount, setQuestionCount] = useState(0);
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -172,6 +176,30 @@ function AppContent() {
       };
 
       setConversation((prev) => [...prev, assistantMessage]);
+      
+      const newQuestionCount = questionCount + 1;
+      setQuestionCount(newQuestionCount);
+
+      if (newQuestionCount === 5) {
+        try {
+          const summaryResponse = await axios.post(
+            `${API_URL}/api/message`,
+            {
+              message: "Please provide a comprehensive summary of our conversation including: 1. A summary of responses by section 2. 2-3 recommended tech roles with percentage matches and explanations 3. Entry-level salary ranges for suggested roles 4. Recommended courses and certifications 5. Portfolio building suggestions 6. Networking opportunities 7. A detailed high school to career roadmap for their suggested paths",
+            },
+            {
+              headers: {
+                "session-id": sessionId,
+              },
+            }
+          );
+
+          setAssessmentSummary(summaryResponse.data);
+          setShowResults(true);
+        } catch (error) {
+          console.error("Error generating summary:", error);
+        }
+      }
     } catch (error) {
       console.error("Error:", error);
 
@@ -329,18 +357,24 @@ function AppContent() {
       <Route
         path="/"
         element={
-          <Chat
-            conversation={conversation}
-            loading={loading}
-            input={input}
-            setInput={setInput}
-            handleKeyPress={handleKeyPress}
-            sendMessage={sendMessage}
-            handleOptionSelect={handleOptionSelect}
-            menuRef={menuRef}
-            isMenuOpen={isMenuOpen}
-            setIsMenuOpen={setIsMenuOpen}
-          />
+          showResults ? (
+            <Results summary={assessmentSummary} />
+          ) : (
+            <Chat
+              conversation={conversation}
+              loading={loading}
+              input={input}
+              setInput={setInput}
+              handleKeyPress={handleKeyPress}
+              sendMessage={sendMessage}
+              handleOptionSelect={handleOptionSelect}
+              menuRef={menuRef}
+              isMenuOpen={isMenuOpen}
+              setIsMenuOpen={setIsMenuOpen}
+              questionCount={questionCount}
+              maxQuestions={5}
+            />
+          )
         }
       />
     </Routes>
