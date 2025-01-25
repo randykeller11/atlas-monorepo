@@ -6,7 +6,7 @@ const styles = {
   container: {
     maxWidth: "800px",
     margin: "0 auto", 
-    padding: "10px 20px",
+    padding: "5px 20px",
     height: "100vh",
     display: "flex",
     flexDirection: "column",
@@ -15,7 +15,7 @@ const styles = {
     display: "flex",
     flex: 1,
     gap: "20px",
-    height: "calc(100vh - 100px)",
+    height: "calc(100vh - 80px)",
   },
   chatContainer: {
     flex: 1,
@@ -124,7 +124,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '5px',
+    marginBottom: '2px',
     width: '100%',
   },
   headerLeft: {
