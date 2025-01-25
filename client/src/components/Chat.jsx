@@ -5,9 +5,9 @@ import { HamburgerMenu, Dropdown } from '../App';
 const styles = {
   container: {
     maxWidth: "800px",
-    margin: "0 auto",
+    margin: "0 auto", 
     padding: "20px",
-    minHeight: "100vh",
+    height: "100vh",
     display: "flex",
     flexDirection: "column",
   },
@@ -15,24 +15,25 @@ const styles = {
     display: "flex",
     flex: 1,
     gap: "20px",
-    marginBottom: "20px",
+    height: "calc(100vh - 120px)",
   },
   chatContainer: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
+    height: "100%",
   },
   progressSection: {
     width: "30px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    height: "100%",
     justifyContent: "flex-start",
-    padding: "10px 0",
   },
   progressBarContainer: {
     width: '10px',
-    height: 'calc(100vh - 200px)', // Match chatWindow height
+    height: '100%',
     backgroundColor: '#e0e0e0',
     borderRadius: '5px',
     position: "relative",
@@ -58,12 +59,10 @@ const styles = {
     flex: 1,
     border: "1px solid #cccccc",
     padding: "10px",
-    height: "calc(100vh - 200px)",
-    minHeight: "400px",
     overflowY: "scroll",
     backgroundColor: "#f5f5f5",
     borderRadius: "8px",
-    marginBottom: "20px",
+    marginBottom: "10px",
   },
   message: {
     marginBottom: "10px",
@@ -77,6 +76,8 @@ const styles = {
     display: "flex",
     gap: "10px",
     width: "100%",
+    padding: "10px 0",
+    backgroundColor: "#fff",
   },
   input: {
     flex: "1",
@@ -124,7 +125,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '20px',
+    marginBottom: '10px',
     width: '100%',
   },
   headerLeft: {
