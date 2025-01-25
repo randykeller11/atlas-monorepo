@@ -11,27 +11,43 @@ const styles = {
     display: "flex",
     flexDirection: "column",
   },
+  chatProgressWrapper: {
+    display: "flex",
+    flex: 1,
+    gap: "20px",
+    position: "relative",
+  },
   progressSection: {
-    marginBottom: "20px",
+    width: "30px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    padding: "10px 0",
   },
   progressBarContainer: {
-    width: '100%',
-    height: '10px',
+    width: '10px',
+    height: 'calc(100vh - 300px)',
     backgroundColor: '#e0e0e0',
     borderRadius: '5px',
-    margin: '5px 0',
+    position: "relative",
   },
   progressBar: {
-    height: '100%',
+    width: '100%',
     backgroundColor: '#4CAF50',
     borderRadius: '5px',
-    transition: 'width 0.3s ease',
+    transition: 'height 0.3s ease',
+    position: "absolute",
+    bottom: 0,
   },
   questionCounter: {
-    textAlign: 'right',
+    writingMode: 'vertical-rl',
+    transform: 'rotate(180deg)',
+    textAlign: 'center',
     fontSize: '14px',
     color: '#666',
-    marginBottom: '5px',
+    marginBottom: '10px',
+    whiteSpace: 'nowrap',
   },
   chatWindow: {
     flex: 1,
@@ -365,20 +381,8 @@ const Chat = ({
         />
       </div>
 
-      <div style={styles.progressSection}>
-        <div style={styles.questionCounter}>
-          Question {questionCount} of {maxQuestions}
-        </div>
-        <div style={styles.progressBarContainer}>
-          <div 
-            style={{
-              ...styles.progressBar,
-              width: `${(questionCount / maxQuestions) * 100}%`
-            }}
-          />
-        </div>
-      </div>
-      <div ref={chatWindowRef} style={styles.chatWindow}>
+      <div style={styles.chatProgressWrapper}>
+        <div ref={chatWindowRef} style={styles.chatWindow}>
         {conversation.map((message, index) => (
           <div key={index} style={styles.message}>
             <strong>{message.role === "assistant" ? "Atlas: " : "You: "}</strong>
@@ -404,6 +408,20 @@ const Chat = ({
             <div style={styles.loadingDot}></div>
           </div>
         )}
+      </div>
+        <div style={styles.progressSection}>
+          <div style={styles.questionCounter}>
+            Question {questionCount} of {maxQuestions}
+          </div>
+          <div style={styles.progressBarContainer}>
+            <div 
+              style={{
+                ...styles.progressBar,
+                height: `${(questionCount / maxQuestions) * 100}%`
+              }}
+            />
+          </div>
+        </div>
       </div>
       <div style={styles.inputArea}>
         <input
