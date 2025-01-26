@@ -414,11 +414,15 @@ const createFormattedPrompt = (originalResponse) => {
 };
 
 const hybridSanitize = async (response, threadId) => {
+  console.log("\n=== Starting Response Sanitization ===");
+  console.log("Original response:", response);
+  
   let retryCount = 0;
   const maxRetries = 2;
   
   // First try smart sanitization
   let sanitized = smartSanitize(response);
+  console.log("Initial sanitization result:", sanitized);
   
   const potentiallyInteractive = (
     response.includes('?') && 
@@ -514,6 +518,9 @@ const hybridSanitize = async (response, threadId) => {
       return createFallbackResponse();
     }
   }
+  
+  console.log("Final sanitized response:", sanitized);
+  console.log("=== End Response Sanitization ===\n");
   
   return sanitized;
 };
@@ -798,7 +805,18 @@ const checkAndCancelActiveRuns = async (threadId) => {
   }
 };
 
-// Add detailed logging helper
+// Add logging helpers
+const logResponse = (context, response, formattedResponse) => {
+  console.log("\n=== Response Details ===");
+  console.log(`Timestamp: ${new Date().toISOString()}`);
+  console.log("Context:", context);
+  console.log("\nRaw API Response:");
+  console.log(JSON.stringify(response, null, 2));
+  console.log("\nFormatted Response:");
+  console.log(JSON.stringify(formattedResponse, null, 2));
+  console.log("==================\n");
+};
+
 const logError = (context, error, details = {}) => {
   console.error("=== Error Details ===");
   console.error(`Context: ${context}`);
@@ -1026,9 +1044,11 @@ app.post("/api/message", async (req, res) => {
       timeoutPromise,
     ]);
     console.log("Got response from assistant, sanitizing...");
+    logResponse("API Response", assistantResponse, null);
 
     const sanitizedResponse = await hybridSanitize(assistantResponse, threadId);
     console.log("Response sanitized successfully");
+    logResponse("Sanitized Response", assistantResponse, sanitizedResponse);
 
     res.json(sanitizedResponse);
   } catch (error) {
