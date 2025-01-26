@@ -93,6 +93,23 @@ async function initializeAssistant() {
 initializeAssistant();
 
 // Add helper functions for response parsing and formatting
+const isMultipleChoice = (text) => {
+  const choiceIndicators = [
+    /(?:select|choose|pick)\s+(?:one|an option)/i,
+    /which\s+(?:of the following|option)/i,
+    /would you prefer/i,
+    /which\s+(?:best describes|approach|method)/i,
+    /how would you/i,
+    /\b(?:A|B|C|D)\)[\s\w]/i
+  ];
+
+  return (
+    text.includes('?') && 
+    (choiceIndicators.some(pattern => pattern.test(text)) ||
+     /(?:[A-D]\)|\d+\.)[\s\w]/.test(text))
+  );
+};
+
 const detectQuestionType = (text) => {
   // First check for explicit lettered options (A), B), etc.)
   const hasLetterOptions = /(?:[A-D]\)|\([A-D]\))[\s\w]/.test(text);
@@ -445,9 +462,17 @@ const hybridSanitize = async (response, threadId) => {
     }
   }
 
+  // Check if this is just a regular conversational response
+  if (!response.includes('?') || response.startsWith('Hi') || response.startsWith('Hello')) {
+    return {
+      text: response,
+      type: "text"
+    };
+  }
+
   // Only proceed with retries if really necessary
   let retryCount = 0;
-  const maxRetries = 1; // Reduce max retries since we improved first-pass detection
+  const maxRetries = 1;
   
   const potentiallyInteractive = (
     response.includes('?') && 
