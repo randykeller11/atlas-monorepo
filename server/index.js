@@ -239,59 +239,147 @@ const logFormatError = (response, context = {}) => {
 };
 
 // Update parseResponse to include format error logging
-const parseResponse = (text) => {
-  // Check for ranking question
-  const rankRegex = /<rank>([\s\S]*?)<\/rank>/;
-  const rankMatch = text.match(rankRegex);
+const smartSanitize = (response) => {
+  if (!response || typeof response !== 'string') {
+    return createFallbackResponse();
+  }
 
-  if (rankMatch) {
+  const extractQuestion = (text) => {
+    const questions = text.match(/[^.!?]+\?/g);
+    if (questions) {
+      return questions[questions.length - 1].trim();
+    }
+    return text.split('\n')[0].trim();
+  };
+
+  const extractOptions = (text) => {
+    const optionsPatterns = [
+      {
+        pattern: /([A-Z])\)\s*([^A-Z\n]+)(?=\s*(?:[A-Z]\)|$))/g,
+        transform: (matches) => matches.map(m => ({
+          id: m[1].toLowerCase(),
+          text: m[2].trim()
+        }))
+      },
+      {
+        pattern: /(\d+)\.\s*([^\d\n]+)(?=\s*(?:\d+\.|$))/g,
+        transform: (matches) => matches.map((m, i) => ({
+          id: String.fromCharCode(97 + i),
+          text: m[2].trim()
+        }))
+      },
+      {
+        pattern: /[•-]\s*([^\n•-]+)(?=\s*(?:[•-]|$))/g,
+        transform: (matches) => matches.map((m, i) => ({
+          id: String.fromCharCode(97 + i),
+          text: m[1].trim()
+        }))
+      }
+    ];
+
+    for (const {pattern, transform} of optionsPatterns) {
+      const matches = Array.from(text.matchAll(pattern));
+      if (matches.length >= 2) {
+        return transform(matches);
+      }
+    }
+    return null;
+  };
+
+  const isMultipleChoice = (text) => {
+    const choiceIndicators = [
+      /(?:select|choose|pick)\s+(?:one|an option)/i,
+      /which\s+(?:of the following|option)/i,
+      /would you prefer/i,
+      /which\s+(?:best describes|approach|method)/i
+    ];
+
+    return (
+      text.includes('?') && 
+      choiceIndicators.some(pattern => pattern.test(text)) &&
+      extractOptions(text) !== null
+    );
+  };
+
+  const isRanking = (text) => {
+    const rankingIndicators = [
+      /rank.*(?:following|these|options)/i,
+      /order.*(?:preference|importance)/i,
+      /prioritize.*(?:following|these|options)/i,
+      /arrange.*(?:from most to least|in order)/i
+    ];
+
+    return (
+      rankingIndicators.some(pattern => pattern.test(text)) &&
+      extractOptions(text) !== null
+    );
+  };
+
+  try {
+    if (isMultipleChoice(response)) {
+      const options = extractOptions(response);
+      const question = extractQuestion(response);
+      
+      if (options && question) {
+        return {
+          text: response.split(question)[0].trim(),
+          type: "multiple_choice",
+          question: question,
+          options: options
+        };
+      }
+    }
+
+    if (isRanking(response)) {
+      const items = extractOptions(response);
+      const question = extractQuestion(response);
+      
+      if (items && question) {
+        return {
+          text: response.split(question)[0].trim(),
+          type: "ranking",
+          question: question,
+          items: items,
+          totalRanks: items.length
+        };
+      }
+    }
+
+    return {
+      text: response,
+      type: "text"
+    };
+
+  } catch (error) {
+    console.error('Sanitization error:', error);
+    return createFallbackResponse();
+  }
+};
+
+const hybridSanitize = async (response, threadId) => {
+  const sanitized = smartSanitize(response);
+  
+  const potentiallyInteractive = (
+    response.includes('?') && 
+    (
+      /\b(select|choose|pick|rank|order|prioritize)\b/i.test(response) ||
+      /[A-Z]\)/.test(response) ||
+      /[•-]\s+\w+/.test(response)
+    )
+  );
+
+  if (sanitized.type === "text" && potentiallyInteractive) {
     try {
-      const rankJson = JSON.parse(rankMatch[1]);
-      return {
-        text: text.replace(rankMatch[0], "").trim(),
-        type: "ranking",
-        question: rankJson.question,
-        items: rankJson.items,
-        totalRanks: rankJson.totalRanks,
-      };
+      const retryResponse = await retryAssistantResponse(threadId, 1);
+      if (retryResponse && retryResponse.type !== "text") {
+        return retryResponse;
+      }
     } catch (error) {
-      logFormatError(text, {
-        attemptedFormat: "ranking",
-        parseError: error.message,
-      });
+      console.warn("Retry failed, using sanitized response:", error);
     }
   }
-
-  // Check for multiple choice
-  const mcRegex = /<mc>([\s\S]*?)<\/mc>/;
-  const mcMatch = text.match(mcRegex);
-
-  if (mcMatch) {
-    try {
-      const mcJson = JSON.parse(mcMatch[1]);
-      return {
-        text: text.replace(mcMatch[0], "").trim(),
-        type: "multiple_choice",
-        question: mcJson.question,
-        options: mcJson.options,
-      };
-    } catch (error) {
-      logFormatError(text, {
-        attemptedFormat: "multiple_choice",
-        parseError: error.message,
-      });
-    }
-  }
-
-  // Log when no recognized format is found
-  if (!text.includes("<mc>") && !text.includes("<rank>")) {
-    logFormatError(text, {
-      issue: "No formatting tags found",
-      expectedTags: "<mc> or <rank>",
-    });
-  }
-
-  return { text, type: "text" };
+  
+  return sanitized;
 };
 
 // Add timeout utility function
@@ -803,11 +891,7 @@ app.post("/api/message", async (req, res) => {
     ]);
     console.log("Got response from assistant, sanitizing...");
 
-    const sanitizedResponse = await sanitizeResponse(
-      assistantResponse,
-      threadId,
-      45000
-    );
+    const sanitizedResponse = await hybridSanitize(assistantResponse, threadId);
     console.log("Response sanitized successfully");
 
     res.json(sanitizedResponse);
