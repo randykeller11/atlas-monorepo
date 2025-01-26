@@ -177,10 +177,11 @@ function AppContent() {
 
       setConversation((prev) => [...prev, assistantMessage]);
       
-      const newQuestionCount = questionCount + 1;
-      setQuestionCount(newQuestionCount);
+      // Only increment question count for user messages
+      setQuestionCount((prev) => prev + 1);
 
-      if (newQuestionCount === 5) {
+      // Check if we've reached 5 questions after updating the count
+      if (questionCount + 1 === 5) {
         try {
           const summaryResponse = await axios.post(
             `${API_URL}/api/message`,
@@ -281,6 +282,31 @@ function AppContent() {
         };
 
         setConversation((prev) => [...prev, assistantMessage]);
+        
+        // Only increment question count for user messages
+        setQuestionCount((prev) => prev + 1);
+
+        // Check if we've reached 5 questions after updating the count
+        if (questionCount + 1 === 5) {
+          try {
+            const summaryResponse = await axios.post(
+              `${API_URL}/api/message`,
+              {
+                message: "Please provide a comprehensive summary of our conversation including: 1. A summary of responses by section 2. 2-3 recommended tech roles with percentage matches and explanations 3. Entry-level salary ranges for suggested roles 4. Recommended courses and certifications 5. Portfolio building suggestions 6. Networking opportunities 7. A detailed high school to career roadmap for their suggested paths",
+              },
+              {
+                headers: {
+                  "session-id": sessionId,
+                },
+              }
+            );
+
+            setAssessmentSummary(summaryResponse.data);
+            setShowResults(true);
+          } catch (error) {
+            console.error("Error generating summary:", error);
+          }
+        }
       } catch (error) {
         console.error("Error:", error);
         const errorMessage = {
