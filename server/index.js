@@ -356,8 +356,54 @@ const smartSanitize = (response) => {
   }
 };
 
+const createFormattedPrompt = (originalResponse) => {
+  // Extract any question-like content
+  const questionMatch = originalResponse.match(/[^.!?]+\?/g);
+  const question = questionMatch ? questionMatch[questionMatch.length - 1].trim() : originalResponse;
+
+  // Check if it seems like it should be multiple choice
+  if (/\b(select|choose|pick|which|prefer)\b/i.test(question)) {
+    return `Please rephrase the following as a clear multiple choice question with 3-4 distinct options:
+    "${question}"
+    
+    Format the response as:
+    [Conversational lead-in]
+    
+    [Clear question]
+    A) [First option]
+    B) [Second option]
+    C) [Third option]
+    D) [Optional fourth option]`;
+  }
+
+  // Check if it seems like it should be ranking
+  if (/\b(rank|order|prioritize|arrange)\b/i.test(question)) {
+    return `Please rephrase the following as a ranking question with 4 distinct items:
+    "${question}"
+    
+    Format the response as:
+    [Conversational lead-in]
+    
+    Please rank these options in order of preference:
+    • [First item]
+    • [Second item]
+    • [Third item]
+    • [Fourth item]`;
+  }
+
+  // If we can't determine the type, ask for a simple conversational question
+  return `Please rephrase the following as a simple, open-ended question:
+  "${question}"
+  
+  Format the response as a conversational question that encourages detailed sharing.`;
+};
+
 const hybridSanitize = async (response, threadId) => {
-  const sanitized = smartSanitize(response);
+  let retryCount = 0;
+  const maxRetries = 2;
+  
+  // First try smart sanitization
+  let sanitized = smartSanitize(response);
   
   const potentiallyInteractive = (
     response.includes('?') && 
@@ -368,14 +414,89 @@ const hybridSanitize = async (response, threadId) => {
     )
   );
 
+  // If it should be interactive but sanitization failed
+  while (sanitized.type === "text" && potentiallyInteractive && retryCount < maxRetries) {
+    try {
+      console.log(`Retry attempt ${retryCount + 1}: Requesting formatted response`);
+      
+      // Create a new message with formatting instructions
+      const formattedPrompt = createFormattedPrompt(response);
+      
+      const retryResponse = await openai.beta.threads.messages.create(
+        threadId,
+        {
+          role: "user",
+          content: formattedPrompt
+        }
+      );
+
+      const run = await openai.beta.threads.runs.create(
+        threadId,
+        {
+          assistant_id: assistantId
+        }
+      );
+
+      // Wait for completion and get response
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      while (runStatus.status !== "completed") {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      }
+
+      const messages = await openai.beta.threads.messages.list(threadId);
+      const newResponse = messages.data[0].content[0].text.value;
+      
+      // Try sanitizing the new response
+      sanitized = smartSanitize(newResponse);
+      
+      // If we got a properly formatted response, return it
+      if (sanitized.type !== "text" || !potentiallyInteractive) {
+        return sanitized;
+      }
+
+      retryCount++;
+    } catch (error) {
+      console.warn(`Retry attempt ${retryCount + 1} failed:`, error);
+      retryCount++;
+    }
+  }
+
+  // If we still haven't gotten a proper format after retries,
+  // request a simple conversational question instead
   if (sanitized.type === "text" && potentiallyInteractive) {
     try {
-      const retryResponse = await retryAssistantResponse(threadId, 1);
-      if (retryResponse && retryResponse.type !== "text") {
-        return retryResponse;
+      const fallbackPrompt = `Please ask a different open-ended question that encourages the user to share more about their interests and preferences. Make it conversational and avoid multiple choice or ranking formats.`;
+      
+      const fallbackResponse = await openai.beta.threads.messages.create(
+        threadId,
+        {
+          role: "user",
+          content: fallbackPrompt
+        }
+      );
+
+      const run = await openai.beta.threads.runs.create(
+        threadId,
+        {
+          assistant_id: assistantId
+        }
+      );
+
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      while (runStatus.status !== "completed") {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
       }
+
+      const messages = await openai.beta.threads.messages.list(threadId);
+      return {
+        text: messages.data[0].content[0].text.value,
+        type: "text"
+      };
     } catch (error) {
-      console.warn("Retry failed, using sanitized response:", error);
+      console.error("Fallback question generation failed:", error);
+      return createFallbackResponse();
     }
   }
   
