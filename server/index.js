@@ -301,72 +301,76 @@ const smartSanitize = (response) => {
       return null;
     };
 
-  const isMultipleChoice = (text) => {
-    const choiceIndicators = [
-      /(?:select|choose|pick)\s+(?:one|an option)/i,
-      /which\s+(?:of the following|option)/i,
-      /would you prefer/i,
-      /which\s+(?:best describes|approach|method)/i
-    ];
+    const isMultipleChoice = (text) => {
+      const choiceIndicators = [
+        /(?:select|choose|pick)\s+(?:one|an option)/i,
+        /which\s+(?:of the following|option)/i,
+        /would you prefer/i,
+        /which\s+(?:best describes|approach|method)/i
+      ];
 
-    return (
-      text.includes('?') && 
-      choiceIndicators.some(pattern => pattern.test(text)) &&
-      extractOptions(text) !== null
-    );
-  };
-
-  const isRanking = (text) => {
-    const rankingIndicators = [
-      /rank.*(?:following|these|options)/i,
-      /order.*(?:preference|importance)/i,
-      /prioritize.*(?:following|these|options)/i,
-      /arrange.*(?:from most to least|in order)/i
-    ];
-
-    return (
-      rankingIndicators.some(pattern => pattern.test(text)) &&
-      extractOptions(text) !== null
-    );
-  };
-
-  try {
-    if (isMultipleChoice(response)) {
-      const options = extractOptions(response);
-      const question = extractQuestion(response);
-      
-      if (options && question) {
-        return {
-          text: response.split(question)[0].trim(),
-          type: "multiple_choice",
-          question: question,
-          options: options
-        };
-      }
-    }
-
-    if (isRanking(response)) {
-      const items = extractOptions(response);
-      const question = extractQuestion(response);
-      
-      if (items && question) {
-        return {
-          text: response.split(question)[0].trim(),
-          type: "ranking",
-          question: question,
-          items: items,
-          totalRanks: items.length
-        };
-      }
-    }
-
-    return {
-      text: response,
-      type: "text"
+      return (
+        text.includes('?') && 
+        choiceIndicators.some(pattern => pattern.test(text)) &&
+        extractOptions(text) !== null
+      );
     };
 
+    const isRanking = (text) => {
+      const rankingIndicators = [
+        /rank.*(?:following|these|options)/i,
+        /order.*(?:preference|importance)/i,
+        /prioritize.*(?:following|these|options)/i,
+        /arrange.*(?:from most to least|in order)/i
+      ];
+
+      return (
+        rankingIndicators.some(pattern => pattern.test(text)) &&
+        extractOptions(text) !== null
+      );
+    };
+
+    try {
+      if (isMultipleChoice(response)) {
+        const options = extractOptions(response);
+        const question = extractQuestion(response);
+        
+        if (options && question) {
+          return {
+            text: response.split(question)[0].trim(),
+            type: "multiple_choice",
+            question: question,
+            options: options
+          };
+        }
+      }
+
+      if (isRanking(response)) {
+        const items = extractOptions(response);
+        const question = extractQuestion(response);
+        
+        if (items && question) {
+          return {
+            text: response.split(question)[0].trim(),
+            type: "ranking",
+            question: question,
+            items: items,
+            totalRanks: items.length
+          };
+        }
+      }
+
+      return {
+        text: response,
+        type: "text"
+      };
+
+    } catch (error) {
+      console.error('Inner sanitization error:', error);
+      return createFallbackResponse();
+    }
   } catch (error) {
-    console.error('Sanitization error:', error);
+    console.error('Outer sanitization error:', error);
     return createFallbackResponse();
   }
 };
