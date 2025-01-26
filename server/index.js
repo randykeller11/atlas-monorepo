@@ -116,15 +116,24 @@ const detectQuestionType = (text) => {
 };
 
 const extractOptions = (text) => {
-  // First try to match lettered options (A) B) C) format)
-  const letterPattern = /([A-D])\)\s*([^A-D\n]+?)(?=(?:\s*[A-D]\)|$))/g;
-  const matches = Array.from(text.matchAll(letterPattern));
-  
-  if (matches.length >= 2) {
-    return matches.map(match => ({
-      id: match[1].toLowerCase(),
-      text: match[2].trim()
-    }));
+  // Try different option formats
+  const patterns = [
+    // A) or (A) format
+    /(?:[A-D]\)|\([A-D]\))\s*([^A-D\n]+?)(?=(?:\s*(?:[A-D]\)|\([A-D]\))|$))/g,
+    // Numbered format
+    /(?:\d+\.)\s*([^\d\n]+?)(?=(?:\s*\d+\.|$))/g,
+    // Bullet points
+    /(?:•|-)\s*([^\n•-]+?)(?=(?:\s*(?:•|-)|$))/g
+  ];
+
+  for (const pattern of patterns) {
+    const matches = Array.from(text.matchAll(pattern));
+    if (matches.length >= 2) {
+      return matches.map((match, index) => ({
+        id: String.fromCharCode(97 + index), // a, b, c, d
+        text: match[1].trim()
+      }));
+    }
   }
 
   return null;
@@ -132,22 +141,23 @@ const extractOptions = (text) => {
 
 const extractQuestion = (text) => {
   // Look for the last question before options
-  const parts = text.split(/[A-D]\)/)[0];
+  const parts = text.split(/(?:[A-D]\)|\([A-D]\)|\d+\.|•|-)/)[0];
   const questions = parts.match(/[^.!?]+\?/g);
   
   if (questions) {
     return questions[questions.length - 1].trim();
   }
   
-  // Fallback to looking for the question-like phrase
+  // Fallback to looking for question-like phrases
   const questionIndicators = [
-    /how would you/i,
-    /what would you/i,
-    /which (?:option|approach)/i
+    /how would you[^?]*\??/i,
+    /what would you[^?]*\??/i,
+    /which (?:option|approach)[^?]*\??/i,
+    /do you prefer[^?]*\??/i
   ];
   
   for (const pattern of questionIndicators) {
-    const match = text.match(new RegExp(`[^.!?]*${pattern.source}[^.!?]*\\??`));
+    const match = text.match(pattern);
     if (match) {
       return match[0].trim();
     }
@@ -201,18 +211,59 @@ const smartSanitize = (response) => {
   }
 
   try {
-    // Check for <mc> tags first
+    // First check for explicitly formatted responses with tags
     const mcMatch = response.match(/<mc>([\s\S]*?)<\/mc>/);
+    const rankMatch = response.match(/<rank>([\s\S]*?)<\/rank>/);
+
+    // Handle multiple choice format
     if (mcMatch) {
-      const mcContent = JSON.parse(mcMatch[1]);
-      const conversationalText = response.split('<mc>')[0].trim();
-      
-      return {
-        text: conversationalText,
-        type: "multiple_choice",
-        question: mcContent.question,
-        options: mcContent.options
-      };
+      try {
+        const mcContent = JSON.parse(mcMatch[1]);
+        const conversationalText = response.split('<mc>')[0].trim();
+        
+        // Validate the structure
+        if (!mcContent.question || !Array.isArray(mcContent.options) || mcContent.options.length < 2) {
+          throw new Error('Invalid multiple choice structure');
+        }
+
+        return {
+          text: conversationalText,
+          type: "multiple_choice",
+          question: mcContent.question,
+          options: mcContent.options.map(opt => ({
+            id: opt.id.toLowerCase(),
+            text: opt.text.trim()
+          }))
+        };
+      } catch (error) {
+        console.error('MC parsing error:', error);
+      }
+    }
+
+    // Handle ranking format
+    if (rankMatch) {
+      try {
+        const rankContent = JSON.parse(rankMatch[1]);
+        const conversationalText = response.split('<rank>')[0].trim();
+        
+        // Validate the structure
+        if (!rankContent.question || !Array.isArray(rankContent.items) || rankContent.items.length !== 4) {
+          throw new Error('Invalid ranking structure');
+        }
+
+        return {
+          text: conversationalText,
+          type: "ranking",
+          question: rankContent.question,
+          items: rankContent.items.map(item => ({
+            id: item.id,
+            text: item.text.trim()
+          })),
+          totalRanks: 4
+        };
+      } catch (error) {
+        console.error('Ranking parsing error:', error);
+      }
     }
 
     const extractQuestion = (text) => {
