@@ -95,7 +95,7 @@ initializeAssistant();
 // Add helper functions for response parsing and formatting
 const detectQuestionType = (text) => {
   // First check for explicit lettered options (A), B), etc.)
-  const hasLetterOptions = /[A-D]\)[\s\w]/.test(text);
+  const hasLetterOptions = /(?:[A-D]\)|\([A-D]\))[\s\w]/.test(text);
   
   // Then check for question markers
   const hasQuestion = text.includes('?');
@@ -103,16 +103,13 @@ const detectQuestionType = (text) => {
   // Check for common multiple choice indicators
   const choiceIndicators = [
     /(?:select|choose|pick)\s+(?:one|an option)/i,
-    /which\s+(?:of the following|option)/i,
+    /which\s+(?:of the following|option|approach|method)/i,
     /would you (?:prefer|handle|approach)/i,
     /how would you/i,
     /what (?:would|do) you/i
   ];
 
-  return (
-    hasQuestion && 
-    (hasLetterOptions || choiceIndicators.some(pattern => pattern.test(text)))
-  );
+  return hasQuestion && (hasLetterOptions || choiceIndicators.some(pattern => pattern.test(text)));
 };
 
 const extractOptions = (text) => {
