@@ -270,7 +270,7 @@ const smartSanitize = (response) => {
     const extractOptions = (text) => {
       const optionsPatterns = [
         {
-          pattern: /([A-Z])\)\s*([^A-Z\n]+)(?=\s*(?:[A-Z]\)|$))/g,
+          pattern: /([A-D])\)\s*([^A-D\n]+)(?=\s*(?:[A-D]\)|$))/g,
           transform: (matches) => matches.map(m => ({
             id: m[1].toLowerCase(),
             text: m[2].trim()
@@ -306,13 +306,15 @@ const smartSanitize = (response) => {
         /(?:select|choose|pick)\s+(?:one|an option)/i,
         /which\s+(?:of the following|option)/i,
         /would you prefer/i,
-        /which\s+(?:best describes|approach|method)/i
+        /which\s+(?:best describes|approach|method)/i,
+        /how would you/i,  // Add pattern for "how would you" questions
+        /\b(?:A|B|C|D)\)[\s\w]/i  // Add pattern for A) B) C) D) format
       ];
 
       return (
         text.includes('?') && 
-        choiceIndicators.some(pattern => pattern.test(text)) &&
-        extractOptions(text) !== null
+        (choiceIndicators.some(pattern => pattern.test(text)) ||
+         /(?:[A-D]\)|\d+\.)[\s\w]/.test(text))  // Add pattern for lettered/numbered options
       );
     };
 
