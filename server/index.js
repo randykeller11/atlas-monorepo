@@ -244,47 +244,62 @@ const smartSanitize = (response) => {
     return createFallbackResponse();
   }
 
-  const extractQuestion = (text) => {
-    const questions = text.match(/[^.!?]+\?/g);
-    if (questions) {
-      return questions[questions.length - 1].trim();
+  try {
+    // Check for <mc> tags first
+    const mcMatch = response.match(/<mc>([\s\S]*?)<\/mc>/);
+    if (mcMatch) {
+      const mcContent = JSON.parse(mcMatch[1]);
+      const conversationalText = response.split('<mc>')[0].trim();
+      
+      return {
+        text: conversationalText,
+        type: "multiple_choice",
+        question: mcContent.question,
+        options: mcContent.options
+      };
     }
-    return text.split('\n')[0].trim();
-  };
 
-  const extractOptions = (text) => {
-    const optionsPatterns = [
-      {
-        pattern: /([A-Z])\)\s*([^A-Z\n]+)(?=\s*(?:[A-Z]\)|$))/g,
-        transform: (matches) => matches.map(m => ({
-          id: m[1].toLowerCase(),
-          text: m[2].trim()
-        }))
-      },
-      {
-        pattern: /(\d+)\.\s*([^\d\n]+)(?=\s*(?:\d+\.|$))/g,
-        transform: (matches) => matches.map((m, i) => ({
-          id: String.fromCharCode(97 + i),
-          text: m[2].trim()
-        }))
-      },
-      {
-        pattern: /[•-]\s*([^\n•-]+)(?=\s*(?:[•-]|$))/g,
-        transform: (matches) => matches.map((m, i) => ({
-          id: String.fromCharCode(97 + i),
-          text: m[1].trim()
-        }))
+    const extractQuestion = (text) => {
+      const questions = text.match(/[^.!?]+\?/g);
+      if (questions) {
+        return questions[questions.length - 1].trim();
       }
-    ];
+      return text.split('\n')[0].trim();
+    };
 
-    for (const {pattern, transform} of optionsPatterns) {
-      const matches = Array.from(text.matchAll(pattern));
-      if (matches.length >= 2) {
-        return transform(matches);
+    const extractOptions = (text) => {
+      const optionsPatterns = [
+        {
+          pattern: /([A-Z])\)\s*([^A-Z\n]+)(?=\s*(?:[A-Z]\)|$))/g,
+          transform: (matches) => matches.map(m => ({
+            id: m[1].toLowerCase(),
+            text: m[2].trim()
+          }))
+        },
+        {
+          pattern: /(\d+)\.\s*([^\d\n]+)(?=\s*(?:\d+\.|$))/g,
+          transform: (matches) => matches.map((m, i) => ({
+            id: String.fromCharCode(97 + i),
+            text: m[2].trim()
+          }))
+        },
+        {
+          pattern: /[•-]\s*([^\n•-]+)(?=\s*(?:[•-]|$))/g,
+          transform: (matches) => matches.map((m, i) => ({
+            id: String.fromCharCode(97 + i),
+            text: m[1].trim()
+          }))
+        }
+      ];
+
+      for (const {pattern, transform} of optionsPatterns) {
+        const matches = Array.from(text.matchAll(pattern));
+        if (matches.length >= 2) {
+          return transform(matches);
+        }
       }
-    }
-    return null;
-  };
+      return null;
+    };
 
   const isMultipleChoice = (text) => {
     const choiceIndicators = [
