@@ -94,48 +94,25 @@ initializeAssistant();
 
 // Add helper functions for response parsing and formatting
 const detectQuestionType = (text) => {
-  // Check for explicit formatting first
-  if (text.includes('<mc>')) return 'multiple_choice';
-  if (text.includes('<rank>')) return 'ranking';
-
-  // Check for common multiple choice patterns
-  const mcPatterns = [
-    /[A-Z]\)\s+.+/gm,  // A) Option
-    /[A-Z]\.\s+.+/gm,  // A. Option
-    /Option [A-Z]:/gm,  // Option A:
-    /\d+\)\s+.+/gm,    // 1) Option
-    /\(\s*[A-Z]\s*\)/gm // (A)
-  ];
-
-  // Check for ranking patterns
-  const rankPatterns = [
-    /rank.*following/i,
-    /order.*preference/i,
-    /prioritize.*following/i,
-    /from most to least/i
-  ];
-
-  // Look for bullet points or numbered lists
-  const listPatterns = [
-    /(?:\d+\.|[A-Z]\)|•|-)\s+.+/gm,
-    /^\s*[-•]\s+.+/gm
-  ];
-
-  // Check if it contains a question
+  // First check for explicit lettered options (A), B), etc.)
+  const hasLetterOptions = /[A-D]\)[\s\w]/.test(text);
+  
+  // Then check for question markers
   const hasQuestion = text.includes('?');
   
-  // If it has multiple choice patterns and a question
-  if (mcPatterns.some(pattern => pattern.test(text)) && hasQuestion) {
-    return 'multiple_choice';
-  }
+  // Check for common multiple choice indicators
+  const choiceIndicators = [
+    /(?:select|choose|pick)\s+(?:one|an option)/i,
+    /which\s+(?:of the following|option)/i,
+    /would you (?:prefer|handle|approach)/i,
+    /how would you/i,
+    /what (?:would|do) you/i
+  ];
 
-  // If it has ranking patterns and lists
-  if (rankPatterns.some(pattern => pattern.test(text)) && 
-      listPatterns.some(pattern => pattern.test(text))) {
-    return 'ranking';
-  }
-
-  return 'text';
+  return (
+    hasQuestion && 
+    (hasLetterOptions || choiceIndicators.some(pattern => pattern.test(text)))
+  );
 };
 
 const extractOptions = (text) => {
