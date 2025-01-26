@@ -139,65 +139,44 @@ const detectQuestionType = (text) => {
 };
 
 const extractOptions = (text) => {
-  const options = [];
-  let match;
-
-  // Try different patterns to extract options
-  const patterns = [
-    /([A-Z])\)\s*([^A-Z\n]+)/g,
-    /([A-Z])\.\s*([^A-Z\n]+)/g,
-    /Option\s+([A-Z]):\s*([^A-Z\n]+)/g,
-    /(\d+)\)\s*([^\d\n]+)/g
-  ];
-
-  for (const pattern of patterns) {
-    while ((match = pattern.exec(text)) !== null) {
-      options.push({
-        id: match[1].toLowerCase(),
-        text: match[2].trim()
-      });
-    }
-    if (options.length > 0) break;
+  // First try to match lettered options (A) B) C) format)
+  const letterPattern = /([A-D])\)\s*([^A-D\n]+?)(?=(?:\s*[A-D]\)|$))/g;
+  const matches = Array.from(text.matchAll(letterPattern));
+  
+  if (matches.length >= 2) {
+    return matches.map(match => ({
+      id: match[1].toLowerCase(),
+      text: match[2].trim()
+    }));
   }
 
-  // If no options found, try bullet points or dashes
-  if (options.length === 0) {
-    const bulletPattern = /(?:•|-)\s+([^\n•-]+)/g;
-    let id = 'a';
-    while ((match = bulletPattern.exec(text)) !== null) {
-      options.push({
-        id: id,
-        text: match[1].trim()
-      });
-      id = String.fromCharCode(id.charCodeAt(0) + 1);
-    }
-  }
-
-  return options;
+  return null;
 };
 
 const extractQuestion = (text) => {
-  // Look for the last question mark in the text
-  const questionParts = text.split('?');
-  if (questionParts.length > 1) {
-    // Take the last question and its context
-    const lastQuestion = questionParts.slice(-2).join('?') + '?';
-    return lastQuestion.trim();
+  // Look for the last question before options
+  const parts = text.split(/[A-D]\)/)[0];
+  const questions = parts.match(/[^.!?]+\?/g);
+  
+  if (questions) {
+    return questions[questions.length - 1].trim();
   }
   
-  // If no question mark, look for common question patterns
-  const patterns = [
-    /(?:please|kindly)\s+(?:select|choose|pick|indicate).+/i,
-    /(?:which|what)\s+(?:of\s+the\s+following|option).+/i,
-    /(?:select|choose)\s+(?:one|an?\s+option).+/i
+  // Fallback to looking for the question-like phrase
+  const questionIndicators = [
+    /how would you/i,
+    /what would you/i,
+    /which (?:option|approach)/i
   ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) return match[0].trim();
+  
+  for (const pattern of questionIndicators) {
+    const match = text.match(new RegExp(`[^.!?]*${pattern.source}[^.!?]*\\??`));
+    if (match) {
+      return match[0].trim();
+    }
   }
-
-  return 'Please select an option:';
+  
+  return text.split('\n')[0].trim();
 };
 
 // Add helper function to log response format issues
@@ -423,46 +402,47 @@ const hybridSanitize = async (response, threadId) => {
   console.log("\n=== Starting Response Sanitization ===");
   console.log("Original response:", response);
   
+  // First try direct sanitization
+  if (isMultipleChoice(response)) {
+    const options = extractOptions(response);
+    const question = extractQuestion(response);
+    
+    if (options && question) {
+      const conversationalText = response.split(question)[0].trim();
+      const sanitized = {
+        text: conversationalText,
+        type: "multiple_choice",
+        question: question,
+        options: options
+      };
+      console.log("Successfully sanitized multiple choice response:", sanitized);
+      return sanitized;
+    }
+  }
+
+  // Only proceed with retries if really necessary
   let retryCount = 0;
-  const maxRetries = 2;
-  
-  // First try smart sanitization
-  let sanitized = smartSanitize(response);
-  console.log("Initial sanitization result:", sanitized);
+  const maxRetries = 1; // Reduce max retries since we improved first-pass detection
   
   const potentiallyInteractive = (
     response.includes('?') && 
-    (
-      /\b(select|choose|pick|rank|order|prioritize)\b/i.test(response) ||
-      /[A-Z]\)/.test(response) ||
-      /[•-]\s+\w+/.test(response)
-    )
+    /\b(?:select|choose|pick|rank|order|prioritize|how|what|which)\b/i.test(response)
   );
 
-  // If it should be interactive but sanitization failed
-  while (sanitized.type === "text" && potentiallyInteractive && retryCount < maxRetries) {
+  if (potentiallyInteractive) {
     try {
-      console.log(`Retry attempt ${retryCount + 1}: Requesting formatted response`);
-      
-      // Create a new message with formatting instructions
+      console.log("Attempting format improvement...");
       const formattedPrompt = createFormattedPrompt(response);
       
-      const retryResponse = await openai.beta.threads.messages.create(
-        threadId,
-        {
-          role: "user",
-          content: formattedPrompt
-        }
-      );
+      const retryResponse = await openai.beta.threads.messages.create(threadId, {
+        role: "user",
+        content: formattedPrompt
+      });
 
-      const run = await openai.beta.threads.runs.create(
-        threadId,
-        {
-          assistant_id: assistantId
-        }
-      );
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: assistantId
+      });
 
-      // Wait for completion and get response
       let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
       while (runStatus.status !== "completed") {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -473,62 +453,33 @@ const hybridSanitize = async (response, threadId) => {
       const newResponse = messages.data[0].content[0].text.value;
       
       // Try sanitizing the new response
-      sanitized = smartSanitize(newResponse);
-      
-      // If we got a properly formatted response, return it
-      if (sanitized.type !== "text" || !potentiallyInteractive) {
-        return sanitized;
+      if (isMultipleChoice(newResponse)) {
+        const options = extractOptions(newResponse);
+        const question = extractQuestion(newResponse);
+        
+        if (options && question) {
+          const conversationalText = newResponse.split(question)[0].trim();
+          const sanitized = {
+            text: conversationalText,
+            type: "multiple_choice",
+            question: question,
+            options: options
+          };
+          console.log("Successfully sanitized after format improvement:", sanitized);
+          return sanitized;
+        }
       }
-
-      retryCount++;
     } catch (error) {
-      console.warn(`Retry attempt ${retryCount + 1} failed:`, error);
-      retryCount++;
+      console.warn("Format improvement failed:", error);
     }
   }
 
-  // If we still haven't gotten a proper format after retries,
-  // request a simple conversational question instead
-  if (sanitized.type === "text" && potentiallyInteractive) {
-    try {
-      const fallbackPrompt = `Please ask a different open-ended question that encourages the user to share more about their interests and preferences. Make it conversational and avoid multiple choice or ranking formats.`;
-      
-      const fallbackResponse = await openai.beta.threads.messages.create(
-        threadId,
-        {
-          role: "user",
-          content: fallbackPrompt
-        }
-      );
-
-      const run = await openai.beta.threads.runs.create(
-        threadId,
-        {
-          assistant_id: assistantId
-        }
-      );
-
-      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      while (runStatus.status !== "completed") {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      }
-
-      const messages = await openai.beta.threads.messages.list(threadId);
-      return {
-        text: messages.data[0].content[0].text.value,
-        type: "text"
-      };
-    } catch (error) {
-      console.error("Fallback question generation failed:", error);
-      return createFallbackResponse();
-    }
-  }
-  
-  console.log("Final sanitized response:", sanitized);
-  console.log("=== End Response Sanitization ===\n");
-  
-  return sanitized;
+  // Fallback to text response
+  console.log("Falling back to text response");
+  return {
+    text: response,
+    type: "text"
+  };
 };
 
 // Add timeout utility function
