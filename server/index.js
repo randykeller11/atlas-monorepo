@@ -913,7 +913,33 @@ app.post("/api/message", async (req, res) => {
   // Check if this is a summary request
   if (message.includes('Please provide a comprehensive summary')) {
     try {
-      const response = await getAssistantResponse(threadId, message);
+      // Get the threadId from the sessions map
+      const threadId = sessions.get(sessionId);
+      if (!threadId) {
+        throw new Error('No thread found for session');
+      }
+
+      // Create the message in the thread
+      await openai.beta.threads.messages.create(threadId, {
+        role: "user",
+        content: message,
+      });
+
+      // Create and wait for the run to complete
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: assistantId,
+      });
+
+      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      while (runStatus.status !== "completed") {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+      }
+
+      // Get the response
+      const messages = await openai.beta.threads.messages.list(threadId);
+      const response = messages.data[0].content[0].text.value;
+
       const parsedSummary = parseSummaryResponse(response);
       res.json(parsedSummary);
       return;
