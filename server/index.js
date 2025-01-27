@@ -613,7 +613,7 @@ const hybridSanitize = async (response, threadId) => {
 };
 
 // Add timeout utility function
-const waitWithTimeout = async (ms, timeoutMs = 10000) => {
+const waitWithTimeout = async (ms, timeoutMs = 30000) => {
   return Promise.race([
     new Promise((resolve) => setTimeout(resolve, ms)),
     new Promise((_, reject) =>
@@ -1033,7 +1033,7 @@ app.post("/api/message", async (req, res) => {
   }
 
   // Set response timeout to avoid Heroku H12 error
-  res.setTimeout(55000, () => {
+  res.setTimeout(75000, () => {
     res.status(503).json({
       error: "Operation timed out",
       type: "multiple_choice",
@@ -1073,7 +1073,7 @@ app.post("/api/message", async (req, res) => {
 
     // Set a longer timeout for the OpenAI operations
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Operation timed out")), 45000)
+      setTimeout(() => reject(new Error("Operation timed out")), 65000)
     );
 
     const responsePromise = (async () => {
@@ -1107,7 +1107,7 @@ app.post("/api/message", async (req, res) => {
             `Run ${run.id} status: ${runStatus.status}, elapsed time: ${elapsedTime}ms`
           );
 
-          if (Date.now() - startTime > 40000) {
+          if (Date.now() - startTime > 60000) {
             console.log(
               `Run ${run.id} exceeded time limit, attempting cancellation`
             );
