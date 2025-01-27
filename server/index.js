@@ -1083,6 +1083,25 @@ app.post("/api/message", async (req, res) => {
   console.log('Message:', message);
   
   try {
+    // Check if this is a summary request
+    if (message.includes('Please provide a comprehensive summary')) {
+      const completion = await api.getChatCompletion([
+        {
+          role: "system",
+          content: instructions
+        },
+        ...conversation,
+        {
+          role: "user",
+          content: message
+        }
+      ]);
+
+      const response = JSON.parse(completion.choices[0].message.content);
+      res.json(response);
+      return;
+    }
+
     // Regular message handling
     const completion = await api.getChatCompletion([
       {
@@ -1105,161 +1124,6 @@ app.post("/api/message", async (req, res) => {
       type: "text",
       content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
     });
-  }
-
-  // Set response timeout to avoid Heroku H12 error
-
-  try {
-    if (!sessions.has(sessionId)) {
-      console.log(`Creating new thread for session ${sessionId}`);
-      const thread = await openai.beta.threads.create();
-      sessions.set(sessionId, thread.id);
-      console.log(`Created new thread ${thread.id} for session ${sessionId}`);
-    }
-
-    const threadId = sessions.get(sessionId);
-    const { message } = req.body;
-    console.log(`Processing message in thread ${threadId}:`, message);
-
-    // Check and cancel any active runs before proceeding
-    await checkAndCancelActiveRuns(threadId);
-
-    // Set a longer timeout for the OpenAI operations
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Operation timed out")), 65000)
-    );
-
-    const responsePromise = (async () => {
-      try {
-        console.log(`Creating message in thread ${threadId}`);
-        const threadMessage = await openai.beta.threads.messages.create(
-          threadId,
-          {
-            role: "user",
-            content: message,
-          }
-        );
-        console.log(`Message created with ID: ${threadMessage.id}`);
-
-        console.log(`Starting new run in thread ${threadId}`);
-        const run = await openai.beta.threads.runs.create(threadId, {
-          assistant_id: assistantId,
-        });
-        console.log(`Run created with ID: ${run.id}`);
-
-        let runStatus = await openai.beta.threads.runs.retrieve(
-          threadId,
-          run.id
-        );
-        const startTime = Date.now();
-        console.log(`Initial run status: ${runStatus.status}`);
-
-        while (runStatus.status !== "completed") {
-          const elapsedTime = Date.now() - startTime;
-          console.log(
-            `Run ${run.id} status: ${runStatus.status}, elapsed time: ${elapsedTime}ms`
-          );
-
-          if (Date.now() - startTime > 60000) {
-            console.log(
-              `Run ${run.id} exceeded time limit, attempting cancellation`
-            );
-            try {
-              await openai.beta.threads.runs.cancel(threadId, run.id);
-              console.log(`Successfully cancelled run ${run.id}`);
-            } catch (cancelError) {
-              logError("Run Cancellation", cancelError, {
-                runId: run.id,
-                threadId,
-              });
-            }
-            throw new Error("Run timed out");
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-
-          if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
-            logError(
-              "Run Status Error",
-              new Error(`Run ended with status: ${runStatus.status}`),
-              {
-                runId: run.id,
-                threadId,
-                status: runStatus.status,
-                lastError: runStatus.last_error,
-              }
-            );
-            throw new Error(
-              `Run ${run.id} ended with status: ${runStatus.status}`
-            );
-          }
-        }
-
-        console.log(`Run ${run.id} completed successfully`);
-        const messages = await openai.beta.threads.messages.list(threadId);
-        console.log(`Retrieved ${messages.data.length} messages from thread`);
-        return messages.data[0].content[0].text.value;
-      } catch (error) {
-        logError("Response Promise", error, { threadId });
-        throw error;
-      }
-    })();
-
-    const assistantResponse = await Promise.race([
-      responsePromise,
-      timeoutPromise,
-    ]);
-    console.log("Got response from assistant, sanitizing...");
-    logResponse("API Response", assistantResponse, null);
-
-    const sanitizedResponse = await hybridSanitize(assistantResponse, threadId);
-    console.log("Response sanitized successfully");
-    logResponse("Sanitized Response", assistantResponse, sanitizedResponse);
-
-    res.json(sanitizedResponse);
-  } catch (error) {
-    logError("Request Handler", error, {
-      sessionId,
-      threadId: sessions.get(sessionId),
-      messageType:
-        error.message === "Operation timed out" ? "timeout" : "error",
-    });
-
-    if (error.message === "Operation timed out") {
-      try {
-        // Create a message requesting a simple text response
-        const timeoutMessage = await openai.beta.threads.messages.create(threadId, {
-          role: "user",
-          content: "Please rephrase your previous response as a simple text question without multiple choice options or ranking."
-        });
-
-        const run = await openai.beta.threads.runs.create(threadId, {
-          assistant_id: assistantId
-        });
-
-        let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-        while (runStatus.status !== "completed") {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-        }
-
-        const messages = await openai.beta.threads.messages.list(threadId);
-        const response = messages.data[0].content[0].text.value;
-
-        res.json({
-          type: "text",
-          text: response
-        });
-      } catch (retryError) {
-        res.status(503).json({
-          type: "text", 
-          text: "I apologize, but I'm having trouble processing your request. Could you please try asking your question again?"
-        });
-      }
-    } else {
-      res.json(createFallbackResponse());
-    }
   }
 });
 
