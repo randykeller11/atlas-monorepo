@@ -390,11 +390,13 @@ function AppContent() {
     // Set processing state after validating the selection
     setIsProcessingResponse(true);
 
-    // Create user message with context
+    // Create user message with context based on question type
     const userMessage = {
       role: "user",
       content: question.type === 'multiple_choice' ? 
         `For the question "${question.question}", I chose: ${question.options?.find((opt) => opt.id === selectedOption)?.text}` :
+        question.type === 'ranking' ?
+        `For the ranking question "${question.question}", my ranking order is: ${selectedOption}` :
         selectedOption
     };
 
