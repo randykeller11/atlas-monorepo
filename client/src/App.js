@@ -306,6 +306,32 @@ function AppContent() {
         };
 
         setConversation((prev) => [...prev, assistantMessage]);
+        
+        // Increment question count after each completed interaction
+        const newCount = questionCount + 1;
+        setQuestionCount(newCount);
+
+        // Check if we've reached max questions
+        if (newCount >= maxQuestions) {
+          try {
+            const summaryResponse = await axios.post(
+              `${API_URL}/api/message`,
+              {
+                message: "Please provide a comprehensive summary of our conversation including: 1. A summary of responses by section 2. 2-3 recommended tech roles with percentage matches and explanations 3. Entry-level salary ranges for suggested roles 4. Recommended courses and certifications 5. Portfolio building suggestions 6. Networking opportunities 7. A detailed high school to career roadmap for their suggested paths",
+              },
+              {
+                headers: {
+                  "session-id": sessionId,
+                },
+              }
+            );
+
+            setAssessmentSummary(summaryResponse.data);
+            setShowResults(true);
+          } catch (error) {
+            console.error("Error generating summary:", error);
+          }
+        }
       
         // Increment question count for completed interaction
         setQuestionCount((prev) => Math.min(prev + 1, 5));
