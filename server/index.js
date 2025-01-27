@@ -1078,6 +1078,9 @@ app.post("/api/message", async (req, res) => {
   try {
     const state = getConversationState(sessionId);
     
+    // Ensure conversation is an array
+    const conversationArray = Array.isArray(conversation) ? conversation : [];
+    
     // Add state information to system message
     const systemMessage = {
       role: "system",
@@ -1090,7 +1093,7 @@ app.post("/api/message", async (req, res) => {
     };
     
     // Check if this is a summary request
-    if (message.includes('Please provide a comprehensive summary')) {
+    if (message.includes('[GENERATE_SUMMARY]')) {
       const completion = await api.getChatCompletion([
         {
           role: "system",
@@ -1114,6 +1117,7 @@ app.post("/api/message", async (req, res) => {
 
     // Regular message handling
     const completion = await api.getChatCompletion([
+      systemMessage,
       ...conversationArray,
       {
         role: "user",
@@ -1126,6 +1130,10 @@ app.post("/api/message", async (req, res) => {
     }
 
     const response = JSON.parse(completion.choices[0].message.content);
+    
+    // Update conversation state based on response
+    updateConversationState(sessionId, response);
+    
     res.json(response);
 
   } catch (error) {
