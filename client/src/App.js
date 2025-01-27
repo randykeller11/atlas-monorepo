@@ -318,8 +318,31 @@ Here's an example of a properly formatted response:
       }
     } catch (error) {
       console.error("Error:", error);
+      
+      // For timeout errors, try to get a simpler response
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        try {
+          const response = await axios.post(
+            `${API_URL}/api/message`,
+            { message: "Please provide a simple response." },
+            {
+              headers: { "session-id": sessionId },
+              timeout: 10000
+            }
+          );
+          
+          setConversation(prev => [...prev, {
+            role: "assistant",
+            content: response.data.text,
+            type: "text"
+          }]);
+          return;
+        } catch (retryError) {
+          console.error("Retry failed:", retryError);
+        }
+      }
 
-      // Handle timeout specifically
+      // Fallback error handling
       const timeoutMessage = {
         role: "assistant",
         type: "multiple_choice",
@@ -545,6 +568,31 @@ Here's an example of a properly formatted response:
       }
     } catch (error) {
       console.error("Error:", error);
+      
+      // For timeout errors, try to get a simpler response
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        try {
+          const response = await axios.post(
+            `${API_URL}/api/message`,
+            { message: "Please provide a simple response." },
+            {
+              headers: { "session-id": sessionId },
+              timeout: 10000
+            }
+          );
+          
+          setConversation(prev => [...prev, {
+            role: "assistant",
+            content: response.data.text,
+            type: "text"
+          }]);
+          return;
+        } catch (retryError) {
+          console.error("Retry failed:", retryError);
+        }
+      }
+
+      // Fallback error message
       const errorMessage = {
         role: "assistant",
         content: "I apologize, but I'm having trouble generating a response. Please try again.",
