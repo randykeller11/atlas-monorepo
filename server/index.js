@@ -1129,12 +1129,21 @@ app.post("/api/message", async (req, res) => {
       throw new Error('Invalid API response format');
     }
 
-    const response = JSON.parse(completion.choices[0].message.content);
-    
-    // Update conversation state based on response
-    updateConversationState(sessionId, response);
-    
-    res.json(response);
+    try {
+      const response = JSON.parse(completion.choices[0].message.content);
+      
+      // Update conversation state based on response
+      updateConversationState(sessionId, response);
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error parsing response:', error);
+      console.error('Raw response:', completion.choices[0].message.content);
+      res.json({
+        type: "text",
+        content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
+      });
+    }
 
   } catch (error) {
     console.error('Error processing message:', error);
