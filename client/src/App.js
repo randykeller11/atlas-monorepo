@@ -199,7 +199,11 @@ function AppContent() {
       setConversation((prev) => [...prev, assistantMessage]);
       
       // Only increment count if this is a question response after name handling
-      if (hasHandledName && (response.data.type === 'multiple_choice' || response.data.type === 'ranking')) {
+      if (hasHandledName && (
+        response.data.type === 'multiple_choice' || 
+        response.data.type === 'ranking' ||
+        response.data.type === 'text'
+      )) {
         const newCount = incrementQuestionCount();
         console.log('Question type:', response.data.type);
         
@@ -444,7 +448,11 @@ Here's an example of a properly formatted response:
       setConversation(prev => [...prev, assistantMessage]);
     
       // Only increment count if this is a question response after name handling
-      if (hasHandledName && (response.data.type === 'multiple_choice' || response.data.type === 'ranking')) {
+      if (hasHandledName && (
+        response.data.type === 'multiple_choice' || 
+        response.data.type === 'ranking' ||
+        response.data.type === 'text'
+      )) {
         const newCount = incrementQuestionCount();
         console.log('Question type:', response.data.type);
         
