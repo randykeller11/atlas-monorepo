@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server/index.mjs",
     "heroku-postbuild": "cd client && npm install && npm run build"
   },
   "engines": {
