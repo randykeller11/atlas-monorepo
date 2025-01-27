@@ -77,54 +77,96 @@ function AppContent() {
   const menuRef = useRef(null);
   const location = useLocation();
 
-  const handleQuestionCount = (responseData, messageContent) => {
-    // Create a unique identifier for this response
+  const incrementQuestionCount = async (responseData, messageContent) => {
     const responseId = `${messageContent}-${Date.now()}`;
     
     console.log('\n=== Question Count Check ===');
     console.log('Current count:', questionCount);
     console.log('Has handled name:', hasHandledName);
     console.log('Response type:', responseData.type);
-    console.log('Response ID:', responseId);
-    console.log('Last counted response:', lastCountedResponse);
+    console.log('Message content:', messageContent);
     
-    // Only count if:
-    // 1. We've handled the name
-    // 2. It's a valid response type
-    // 3. It's not a duplicate response
-    // 4. We haven't reached max questions yet
-    if (hasHandledName && 
-        (responseData.type === 'multiple_choice' || 
-         responseData.type === 'ranking' ||
-         responseData.type === 'text') &&
-        responseId !== lastCountedResponse &&
-        questionCount < maxQuestions) {
+    // Only increment if we haven't reached max questions
+    if (questionCount >= maxQuestions) {
+      console.log('Already at or past max questions');
+      return;
+    }
+
+    // Only count if it's a valid question type
+    if (!responseData.type || 
+        !['multiple_choice', 'ranking', 'text'].includes(responseData.type)) {
+      console.log('Not a countable question type');
+      return;
+    }
+
+    const newCount = questionCount + 1;
+    console.log('Incrementing count to:', newCount);
+    setQuestionCount(newCount);
+
+    // If we've reached max questions, prepare results
+    if (newCount === maxQuestions) {
+      console.log('Reached max questions, preparing results...');
+      setAssessmentSummary({
+        summaryOfResponses: null,
+        careerMatches: null,
+        salaryInformation: null,
+        educationPath: null,
+        portfolioRecommendations: null,
+        networkingSuggestions: null,
+        careerRoadmap: null
+      });
+      setShowResults(true);
       
-      const newCount = questionCount + 1;
-      console.log('\n=== Updating Question Count ===');
-      console.log('Previous count:', questionCount);
-      console.log('New count:', newCount);
-      
-      setQuestionCount(newCount);
-      setLastCountedResponse(responseId);
-      
-      // Only show results if we've reached exactly maxQuestions
-      if (newCount === maxQuestions) {
-        console.log('Reached max questions, preparing results...');
-        setAssessmentSummary({
-          summaryOfResponses: null,
-          careerMatches: null,
-          salaryInformation: null,
-          educationPath: null,
-          portfolioRecommendations: null,
-          networkingSuggestions: null,
-          careerRoadmap: null
-        });
-        setShowResults(true);
-        return true;
+      // Request summary...
+      try {
+        const summaryResponse = await axios.post(
+          `${API_URL}/api/message`,
+          {
+            message: `Please provide a comprehensive summary of our conversation using exactly this format:
+
+**Summary of Responses:**
+- Interest Exploration: [key interests and findings]
+- Technical Aptitude: [technical skills and preferences]
+- Work Style: [work environment and collaboration preferences]
+- Career Values: [prioritized values and goals]
+
+**Career Matches:**
+- [Role Name] ([X]% match): [brief explanation]
+- [Role Name] ([X]% match): [brief explanation]
+
+**Salary Information:**
+- [Role Name]: [salary range]
+- [Role Name]: [salary range]
+
+**Education Path:**
+- Courses: [specific course names]
+- Certifications: [specific certification names]
+
+**Portfolio Recommendations:**
+- [specific project suggestion]
+- [specific project suggestion]
+
+**Networking Suggestions:**
+- [specific community or platform]
+- [specific community or platform]
+
+**Career Roadmap:**
+- High School: [specific steps]
+- College: [specific steps]
+- Early Career: [specific steps]
+- Long-term Development: [specific steps]`
+          },
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+          }
+        );
+        setAssessmentSummary(summaryResponse.data);
+      } catch (error) {
+        console.error("Error generating summary:", error);
       }
     }
-    return false;
   };
 
 
@@ -237,12 +279,8 @@ function AppContent() {
 
         setConversation((prev) => [...prev, assistantMessage]);
         
-        // Check if we've reached max questions
-        if (handleQuestionCount(response.data, input)) {
-            const summaryResponse = await axios.post(
-              `${API_URL}/api/message`,
-              {
-                message: `Please provide a comprehensive summary of our conversation using exactly this format:
+        setConversation((prev) => [...prev, assistantMessage]);
+        await incrementQuestionCount(response.data, input);
 
 **Summary of Responses:**
 - Interest Exploration: [key interests and findings]
@@ -484,12 +522,8 @@ Here's an example of a properly formatted response:
         // Update conversation with assistant's response
         setConversation(prev => [...prev, assistantMessage]);
       
-        // Check if we've reached max questions
-        if (handleQuestionCount(response.data, userMessage.content)) {
-            const summaryResponse = await axios.post(
-              `${API_URL}/api/message`,
-              {
-                message: `Please provide a comprehensive summary of our conversation using exactly this format:
+        setConversation(prev => [...prev, assistantMessage]);
+        await incrementQuestionCount(response.data, userMessage.content);
 
 **Summary of Responses:**
 - Interest Exploration: [key interests and findings]
