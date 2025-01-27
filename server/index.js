@@ -1037,12 +1037,12 @@ app.post("/api/message", async (req, res) => {
       const completion = await api.getChatCompletion([
         {
           role: "system",
-          content: instructions
+          content: instructions + ". Please respond with JSON."
         },
         ...conversationArray,
         {
           role: "user",
-          content: message
+          content: message + ". Please respond with JSON."
         }
       ]);
 
@@ -1060,7 +1060,7 @@ app.post("/api/message", async (req, res) => {
       ...conversationArray,
       {
         role: "user",
-        content: message
+        content: message + ". Please respond with JSON."
       }
     ]);
 
