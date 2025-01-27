@@ -1186,24 +1186,32 @@ app.post("/api/message", async (req, res) => {
     try {
       // Parse the response content as JSON
       const parsedResponse = JSON.parse(completion.choices[0].message.content);
-        
+      
       // Log the parsed response for debugging
       console.log('\n=== Parsed Response ===');
       console.log(JSON.stringify(parsedResponse, null, 2));
-        
+      
+      // Validate the response has the required fields
+      if (!parsedResponse.type || !parsedResponse.content) {
+        throw new Error('Invalid response format: missing required fields');
+      }
+      
       // Update conversation state based on response
       updateConversationState(sessionId, parsedResponse);
-        
+      
       // Add state to response
       const responseWithState = {
-        ...parsedResponse,  // Use the entire parsed response as is
+        ...parsedResponse,
         _state: {
           questionsAsked: state.questionsAsked,
           currentSection: state.currentSection,
           sectionsCompleted: state.sectionsCompleted
         }
       };
-        
+      
+      console.log('\n=== Final Response to Client ===');
+      console.log(JSON.stringify(responseWithState, null, 2));
+      
       res.json(responseWithState);
     } catch (parseError) {
       console.error('Error parsing response:', parseError);
