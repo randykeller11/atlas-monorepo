@@ -520,19 +520,6 @@ const hybridSanitize = async (response, threadId) => {
   console.log("\n=== Starting Response Sanitization ===");
   console.log("Original response:", response);
 
-  // Quick return for simple text responses
-  if (!response.includes('?') || 
-      response.startsWith('Hi') || 
-      response.startsWith('Hello') ||
-      response.startsWith('That') ||
-      response.startsWith('Thank')) {
-    console.log("Detected simple text response, skipping formatting");
-    return {
-      text: response,
-      type: "text"
-    };
-  }
-
   // First check for explicit MC/rank tags
   if (response.includes('<mc>') || response.includes('<rank>')) {
     try {
@@ -572,16 +559,8 @@ const hybridSanitize = async (response, threadId) => {
       console.warn("Failed to parse explicit format:", error);
     }
   }
-  
-  // Check if this is just a regular conversational response
-  if (!response.includes('?') || response.startsWith('Hi') || response.startsWith('Hello')) {
-    return {
-      text: response,
-      type: "text"
-    };
-  }
 
-  // Try to detect and parse multiple choice format
+  // Then check for implicit multiple choice format
   if (isMultipleChoice(response)) {
     const options = extractOptions(response);
     const question = extractQuestion(response);
@@ -602,6 +581,9 @@ const hybridSanitize = async (response, threadId) => {
       }
     }
   }
+
+  // If no special formatting is detected, return as text
+  console.log("No special formatting detected, returning as text");
 
   // If we get here, try to improve the format through the API
   const potentiallyInteractive = (
