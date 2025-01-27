@@ -281,7 +281,7 @@ function AppContent() {
         const response = await axios.post(
           `${API_URL}/api/message`,
           {
-            message: selectedOption,
+            message: userMessage.content,
           },
           {
             headers: {
@@ -304,7 +304,7 @@ function AppContent() {
 
         setConversation((prev) => [...prev, assistantMessage]);
         
-        // Increment question count after each completed interaction
+        // Increment the counter after a successful response
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
 
@@ -329,31 +329,6 @@ function AppContent() {
             console.error("Error generating summary:", error);
           }
         }
-      
-        // Increment question count for completed interaction
-        setQuestionCount((prev) => Math.min(prev + 1, 5));
-
-        // Check if we've reached max questions
-        if (questionCount + 1 === 5) {
-          try {
-            const summaryResponse = await axios.post(
-              `${API_URL}/api/message`,
-              {
-                message: "Please provide a comprehensive summary of our conversation including: 1. A summary of responses by section 2. 2-3 recommended tech roles with percentage matches and explanations 3. Entry-level salary ranges for suggested roles 4. Recommended courses and certifications 5. Portfolio building suggestions 6. Networking opportunities 7. A detailed high school to career roadmap for their suggested paths",
-              },
-              {
-                headers: {
-                  "session-id": sessionId,
-                },
-              }
-            );
-
-            setAssessmentSummary(summaryResponse.data);
-            setShowResults(true);
-          } catch (error) {
-            console.error("Error generating summary:", error);
-          }
-        }
       } catch (error) {
         console.error("Error:", error);
         const errorMessage = {
@@ -365,63 +340,16 @@ function AppContent() {
       } finally {
         setLoading(false);
       }
-    } else {
-      // Handle multiple choice selection
-      const selectedText =
-        e.target.selectedText ||
-        question.options?.find((opt) => opt.id === selectedOption)?.text;
-
-      if (!selectedText) {
-        console.error("Could not find selected option text");
-        return;
-      }
-
-      const userMessage = {
-        role: "user",
-        content: selectedText,
-      };
-
-      setConversation((prev) => [...prev, userMessage]);
-      setLoading(true);
-
-      try {
-        const response = await axios.post(
-          `${API_URL}/api/message`,
-          {
-            message: selectedText,
-          },
-          {
-            headers: {
-              "session-id": sessionId,
-            },
-          }
-        );
-
-        validateResponse(response.data);
-
-        const assistantMessage = {
-          role: "assistant",
-          content: response.data.text,
-          type: response.data.type,
-          question: response.data.question,
-          items: response.data.items,
-          totalRanks: response.data.totalRanks,
-          options: response.data.options,
-        };
-
-        setConversation((prev) => [...prev, assistantMessage]);
       } catch (error) {
         console.error("Error:", error);
         const errorMessage = {
           role: "assistant",
-          content:
-            "I apologize, but I'm having trouble generating a response. Please try again.",
+          content: "I apologize, but I'm having trouble generating a response. Please try again.",
         };
         setConversation((prev) => [...prev, errorMessage]);
       } finally {
         setLoading(false);
       }
-    }
   };
 
   return (
