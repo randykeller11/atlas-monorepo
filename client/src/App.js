@@ -531,6 +531,7 @@ Here's an example of a properly formatted response:
             console.error("Error generating summary:", error);
           }
         }
+        }
       } catch (error) {
         console.error("Error:", error);
         const errorMessage = {
