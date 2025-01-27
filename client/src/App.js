@@ -488,7 +488,7 @@ Long-term Development: [path]`,
           
           setConversation(prev => [...prev, {
             role: "assistant",
-            content: response.data.text,
+            content: response.data.content,
             type: "text"
           }]);
           return;
