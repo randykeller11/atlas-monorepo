@@ -1,8 +1,20 @@
-const express = require("express");
-const cors = require("cors");
+import express from 'express';
+import cors from 'cors';
 import OpenRouterAPI from "./api/openrouter.mjs";
-const { instructions } = require("./instructions");
-require("dotenv").config();
+import { instructions } from "./instructions.js";
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { users } from "./users.js";
+import fs from 'fs/promises';
+
+// Initialize dotenv
+dotenv.config();
+
+// Set up __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const api = new OpenRouterAPI({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -11,9 +23,6 @@ const api = new OpenRouterAPI({
     title: "Atlas Career Coach"
   }
 });
-const path = require("path");
-const { users } = require("./users");
-const fs = require("fs").promises;
 
 const app = express();
 const PORT = process.env.PORT || 5001;
