@@ -80,11 +80,12 @@ function AppContent() {
 
 
   useEffect(() => {
-    console.log('\n=== Question Count Changed ===');
-    console.log('Current question count:', questionCount);
-    console.log('Max questions:', maxQuestions);
-    console.log('Show results:', showResults);
-  }, [questionCount, maxQuestions, showResults]);
+    console.log('\n=== State Update ===');
+    console.log('hasHandledName:', hasHandledName);
+    console.log('questionCount:', questionCount);
+    console.log('maxQuestions:', maxQuestions);
+    console.log('showResults:', showResults);
+  }, [hasHandledName, questionCount, maxQuestions, showResults]);
 
   useEffect(() => {
     // Reset chat if coming from admin with reset flag
@@ -392,12 +393,6 @@ Here's an example of a properly formatted response:
         question.options?.find((opt) => opt.id === selectedOption)?.text || selectedOption,
     };
 
-    // Mark that we've handled the name response if we haven't yet
-    if (!hasHandledName) {
-      setHasHandledName(true);
-      console.log('Name response handled');
-    }
-
     // Update conversation immediately
     setConversation(prev => [...prev, userMessage]);
     setLoading(true);
@@ -429,12 +424,16 @@ Here's an example of a properly formatted response:
 
       // Update conversation with assistant's response
       setConversation(prev => [...prev, assistantMessage]);
-        
-        // Only count questions after the name response
-        if (hasHandledName) {
-          const newCount = questionCount + 1;
-          setQuestionCount(newCount);
-          console.log(`Question count increased to ${newCount}`);
+    
+      // Increment the question count after the first response
+      if (!hasHandledName) {
+        setHasHandledName(true);
+      } else {
+        const newCount = questionCount + 1;
+        console.log('\n=== Updating Question Count ===');
+        console.log('Previous count:', questionCount);
+        console.log('New count:', newCount);
+        setQuestionCount(newCount);
 
           if (newCount === maxQuestions) {
           // Set initial null state for all summary sections
