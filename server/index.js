@@ -1446,22 +1446,3 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Add reset endpoint
-app.post("/api/reset-session", async (req, res) => {
-  const sessionId = req.headers["session-id"];
-
-  try {
-    if (sessions.has(sessionId)) {
-      // Create a new thread for the session
-      const thread = await openai.beta.threads.create();
-      sessions.set(sessionId, thread.id);
-
-      console.log(`Reset session ${sessionId} with new thread ${thread.id}`);
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Error resetting session:", error);
-    res.status(500).json({ error: "Failed to reset session" });
-  }
-});
