@@ -441,6 +441,7 @@ Here's an example of a properly formatted response:
         console.log('New count:', newCount);
         setQuestionCount(newCount);
 
+        // Only proceed with summary if we've completed all questions
         if (newCount === maxQuestions) {
           console.log('Reached max questions, preparing results...');
           // Set initial null state for all summary sections
@@ -543,22 +544,18 @@ Here's an example of a properly formatted response:
             console.error("Error generating summary:", error);
           }
         }
-        }
-      } catch (error) {
-        console.error("Error:", error);
-        const errorMessage = {
-          role: "assistant",
-          content: "I apologize, but I'm having trouble generating a response. Please try again.",
-        };
-        setConversation((prev) => [...prev, errorMessage]);
-      } finally {
-        setLoading(false);
       }
-      
-      // Mark that we've handled the name response if we haven't yet
-      if (!hasHandledName) {
-        setHasHandledName(true);
-      }
+    } catch (error) {
+      console.error("Error:", error);
+      const errorMessage = {
+        role: "assistant",
+        content: "I apologize, but I'm having trouble generating a response. Please try again.",
+      };
+      setConversation((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+      setIsProcessingResponse(false);
+    }
   };
 
   return (
