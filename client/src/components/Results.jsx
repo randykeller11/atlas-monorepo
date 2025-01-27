@@ -50,24 +50,47 @@ const styles = {
     transition: 'width 0.3s ease',
   },
   loadingSection: {
-    minHeight: '100px',
+    minHeight: '150px',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8f8f8',
     borderRadius: '6px',
-    margin: '10px 0'
+    margin: '10px 0',
+    padding: '20px'
   },
-  loadingDots: {
-    display: 'flex',
-    gap: '8px'
+  loadingLogo: {
+    width: '120px',
+    height: 'auto',
+    marginBottom: '20px'
   },
-  loadingDot: {
-    width: '10px',
-    height: '10px',
+  loadingProgressContainer: {
+    width: '100%',
+    maxWidth: '300px',
+    textAlign: 'center'
+  },
+  loadingProgress: {
+    width: '100%',
+    height: '8px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  loadingProgressBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
     backgroundColor: '#4CAF50',
-    borderRadius: '50%',
-    animation: 'bounce 1s infinite ease-in-out'
+    borderRadius: '4px',
+    animation: 'loading 2s infinite ease-in-out'
+  },
+  loadingText: {
+    margin: '10px 0 0 0',
+    color: '#666',
+    fontSize: '14px'
   },
   sectionContent: {
     opacity: 1,
@@ -130,10 +153,16 @@ const Results = ({ summary }) => {
 
   const LoadingPlaceholder = () => (
     <div style={styles.loadingSection}>
-      <div style={styles.loadingDots}>
-        <div style={{...styles.loadingDot, animationDelay: '0s'}} />
-        <div style={{...styles.loadingDot, animationDelay: '0.2s'}} />
-        <div style={{...styles.loadingDot, animationDelay: '0.4s'}} />
+      <img 
+        src="/images/NucoordLogo.PNG"
+        alt="Nucoord Logo"
+        style={styles.loadingLogo}
+      />
+      <div style={styles.loadingProgressContainer}>
+        <div style={styles.loadingProgress}>
+          <div style={styles.loadingProgressBar}></div>
+        </div>
+        <p style={styles.loadingText}>Generating results...</p>
       </div>
     </div>
   );
@@ -249,6 +278,20 @@ const Results = ({ summary }) => {
           @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
+          }
+          @keyframes loading {
+            0% {
+              width: 0%;
+              left: 0%;
+            }
+            50% {
+              width: 100%;
+              left: 0%;
+            }
+            100% {
+              width: 0%;
+              left: 100%;
+            }
           }
         `}
       </style>
