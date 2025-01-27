@@ -1,9 +1,17 @@
 const express = require("express");
 const cors = require("cors");
-const OpenAI = require("openai");
+const OpenRouterAPI = require("./api/openrouter");
 const { instructions } = require("./instructions");
 const { formatting } = require("./formatting");
 require("dotenv").config();
+
+const api = new OpenRouterAPI({
+  apiKey: process.env.OPENAI_API_KEY,
+  headers: {
+    referer: process.env.APP_URL || "http://localhost:3000",
+    title: "Atlas Career Coach"
+  }
+});
 const path = require("path");
 const { users } = require("./users");
 const fs = require("fs").promises;
