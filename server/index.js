@@ -1141,8 +1141,8 @@ app.post("/api/message", async (req, res) => {
                 Please respond with JSON.`
     };
     
-    // Check if this is a summary request
-    if (message.includes('[GENERATE_SUMMARY]')) {
+    // Check if this is a results request
+    if (message.includes('[GENERATE_RESULTS]')) {
       const completion = await api.getChatCompletion([
         {
           role: "system",
@@ -1160,11 +1160,128 @@ app.post("/api/message", async (req, res) => {
       }
 
       try {
-        const response = JSON.parse(completion.choices[0].message.content);
-        res.json(response);
+        // Parse the response content
+        const rawContent = completion.choices[0].message.content;
+        console.log('\n=== Raw Results Response ===');
+        console.log(rawContent);
+
+        // Create structured results object
+        const results = {
+          summaryOfResponses: {
+            interestExploration: "",
+            technicalAptitude: "",
+            workStyle: "",
+            careerValues: ""
+          },
+          careerMatches: [],
+          salaryInformation: {},
+          educationPath: {
+            courses: [],
+            certifications: []
+          },
+          portfolioRecommendations: [],
+          networkingSuggestions: [],
+          careerRoadmap: {
+            highSchool: "",
+            college: "",
+            earlyCareer: "",
+            longTerm: ""
+          }
+        };
+
+        // Parse the raw content into sections
+        const sections = rawContent.split(/\d+\./);
+        
+        sections.forEach(section => {
+          if (section.includes('Summary of Responses')) {
+            const lines = section.split('\n').filter(line => line.trim());
+            lines.forEach(line => {
+              if (line.includes('Interest Exploration:')) 
+                results.summaryOfResponses.interestExploration = line.split(':')[1].trim();
+              if (line.includes('Technical Aptitude:')) 
+                results.summaryOfResponses.technicalAptitude = line.split(':')[1].trim();
+              if (line.includes('Work Style:')) 
+                results.summaryOfResponses.workStyle = line.split(':')[1].trim();
+              if (line.includes('Career Values:')) 
+                results.summaryOfResponses.careerValues = line.split(':')[1].trim();
+            });
+          }
+          
+          if (section.includes('Career Matches')) {
+            const matches = section.match(/- (.*?) \((\d+)% match\): (.*?)(?=\n|$)/g) || [];
+            results.careerMatches = matches.map(match => {
+              const [_, role, percentage, explanation] = match.match(/- (.*?) \((\d+)% match\): (.*?)$/);
+              return {
+                role: role.trim(),
+                match: parseInt(percentage),
+                explanation: explanation.trim()
+              };
+            });
+          }
+
+          if (section.includes('Salary Information')) {
+            const salaryLines = section.match(/- .*?: .*?(?=\n|$)/g) || [];
+            salaryLines.forEach(line => {
+              const [role, salary] = line.substring(2).split(':');
+              results.salaryInformation[role.trim()] = salary.trim();
+            });
+          }
+
+          if (section.includes('Education Path')) {
+            const coursesMatch = section.match(/Courses:\n((?:- .*?\n)*)/);
+            if (coursesMatch) {
+              results.educationPath.courses = coursesMatch[1]
+                .split('\n')
+                .filter(line => line.startsWith('- '))
+                .map(line => line.substring(2).trim());
+            }
+
+            const certsMatch = section.match(/Certifications:\n((?:- .*?\n)*)/);
+            if (certsMatch) {
+              results.educationPath.certifications = certsMatch[1]
+                .split('\n')
+                .filter(line => line.startsWith('- '))
+                .map(line => line.substring(2).trim());
+            }
+          }
+
+          if (section.includes('Portfolio Recommendations')) {
+            results.portfolioRecommendations = section
+              .split('\n')
+              .filter(line => line.startsWith('- '))
+              .map(line => line.substring(2).trim());
+          }
+
+          if (section.includes('Networking Suggestions')) {
+            results.networkingSuggestions = section
+              .split('\n')
+              .filter(line => line.startsWith('- '))
+              .map(line => line.substring(2).trim());
+          }
+
+          if (section.includes('Career Roadmap')) {
+            const roadmapLines = section.split('\n').filter(line => line.trim());
+            roadmapLines.forEach(line => {
+              if (line.includes('High School:')) 
+                results.careerRoadmap.highSchool = line.split(':')[1].trim();
+              if (line.includes('College:')) 
+                results.careerRoadmap.college = line.split(':')[1].trim();
+              if (line.includes('Early Career:')) 
+                results.careerRoadmap.earlyCareer = line.split(':')[1].trim();
+              if (line.includes('Long-term Development:')) 
+                results.careerRoadmap.longTerm = line.split(':')[1].trim();
+            });
+          }
+        });
+
+        console.log('\n=== Parsed Results ===');
+        console.log(JSON.stringify(results, null, 2));
+
+        res.json(results);
       } catch (parseError) {
-        console.error('Error parsing summary response:', parseError);
-        throw new Error('Invalid JSON in summary response');
+        console.error('Error parsing results response:', parseError);
+        console.error('Raw response:', completion.choices[0].message.content);
+        throw new Error('Invalid JSON in results response');
       }
       return;
     }
