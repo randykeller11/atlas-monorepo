@@ -970,61 +970,109 @@ const logError = (context, error, details = {}) => {
 const parseSummaryResponse = (text) => {
   try {
     const sections = {
-      roleMatches: [],
-      salaryRanges: [],
-      recommendedCourses: [],
-      portfolioSuggestions: [],
-      networkingOpportunities: [],
-      careerRoadmap: '',
+      summaryOfResponses: {
+        interestExploration: '',
+        technicalAptitude: '',
+        workStyle: '',
+        careerValues: ''
+      },
+      careerMatches: [],
+      salaryInformation: [],
+      educationPath: {
+        courses: [],
+        certifications: []
+      },
+      portfolioRecommendations: [],
+      networkingSuggestions: [],
+      careerRoadmap: {
+        highSchool: '',
+        college: '',
+        earlyCareer: '',
+        longTerm: ''
+      }
     };
-    
-    // Extract role matches
-    const roleMatchRegex = /(\d+)%\s+match:\s+([\w\s]+)/g;
-    let match;
-    while ((match = roleMatchRegex.exec(text)) !== null) {
-      sections.roleMatches.push({
-        match: parseInt(match[1]),
-        title: match[2].trim()
+
+    // Parse Summary of Responses section
+    const summaryMatch = text.match(/\*\*Summary of Responses:\*\*([\s\S]*?)(?=\*\*Career Matches)/);
+    if (summaryMatch) {
+      const summaryLines = summaryMatch[1].split('\n').filter(line => line.trim());
+      summaryLines.forEach(line => {
+        if (line.includes('Interest Exploration:')) sections.summaryOfResponses.interestExploration = line.split(':')[1].trim();
+        if (line.includes('Technical Aptitude:')) sections.summaryOfResponses.technicalAptitude = line.split(':')[1].trim();
+        if (line.includes('Work Style:')) sections.summaryOfResponses.workStyle = line.split(':')[1].trim();
+        if (line.includes('Career Values:')) sections.summaryOfResponses.careerValues = line.split(':')[1].trim();
       });
     }
 
-    // Extract salary ranges
-    const salaryRegex = /([\w\s]+):\s+\$[\d,]+\s*-\s*\$[\d,]+/g;
-    while ((match = salaryRegex.exec(text)) !== null) {
-      sections.salaryRanges.push({
-        role: match[1].trim(),
-        range: match[0].split(':')[1].trim()
-      });
+    // Parse Career Matches section
+    const matchesMatch = text.match(/\*\*Career Matches:\*\*([\s\S]*?)(?=\*\*Salary)/);
+    if (matchesMatch) {
+      sections.careerMatches = matchesMatch[1].split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => {
+          const [role, explanation] = line.split(':');
+          const matchPercentage = role.match(/\((\d+)%\s+match\)/);
+          return {
+            role: role.split('(')[0].replace('-', '').trim(),
+            match: matchPercentage ? parseInt(matchPercentage[1]) : null,
+            explanation: explanation ? explanation.trim() : ''
+          };
+        });
     }
 
-    // Extract courses
-    const coursesMatch = text.match(/Recommended courses:(.*?)(?=Portfolio|$)/s);
-    if (coursesMatch) {
-      sections.recommendedCourses = coursesMatch[1].trim().split('\n')
-        .map(course => course.trim())
-        .filter(course => course.length > 0);
+    // Parse Salary Information
+    const salaryMatch = text.match(/\*\*Salary Information:\*\*([\s\S]*?)(?=\*\*Education)/);
+    if (salaryMatch) {
+      sections.salaryInformation = salaryMatch[1].split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => {
+          const [role, salary] = line.replace('-', '').split(':');
+          return {
+            role: role.trim(),
+            salary: salary.trim()
+          };
+        });
     }
 
-    // Extract portfolio suggestions
-    const portfolioMatch = text.match(/Portfolio suggestions:(.*?)(?=Networking|$)/s);
+    // Parse Education Path
+    const educationMatch = text.match(/\*\*Education Path:\*\*([\s\S]*?)(?=\*\*Portfolio)/);
+    if (educationMatch) {
+      const eduText = educationMatch[1];
+      sections.educationPath.courses = eduText.match(/Courses:([^]*?)(?=Certifications:|$)/s)?.[1]
+        .split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(course => course.replace('-', '').trim());
+      
+      sections.educationPath.certifications = eduText.match(/Certifications:([^]*?)(?=\*\*|$)/s)?.[1]
+        .split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(cert => cert.replace('-', '').trim());
+    }
+
+    // Parse Portfolio Recommendations
+    const portfolioMatch = text.match(/\*\*Portfolio Recommendations:\*\*([\s\S]*?)(?=\*\*Networking)/);
     if (portfolioMatch) {
-      sections.portfolioSuggestions = portfolioMatch[1].trim().split('\n')
-        .map(suggestion => suggestion.trim())
-        .filter(suggestion => suggestion.length > 0);
+      sections.portfolioRecommendations = portfolioMatch[1].split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => line.replace('-', '').trim());
     }
 
-    // Extract networking opportunities
-    const networkingMatch = text.match(/Networking opportunities:(.*?)(?=Career|$)/s);
+    // Parse Networking Suggestions
+    const networkingMatch = text.match(/\*\*Networking Suggestions:\*\*([\s\S]*?)(?=\*\*Career)/);
     if (networkingMatch) {
-      sections.networkingOpportunities = networkingMatch[1].trim().split('\n')
-        .map(opportunity => opportunity.trim())
-        .filter(opportunity => opportunity.length > 0);
+      sections.networkingSuggestions = networkingMatch[1].split('\n')
+        .filter(line => line.trim().startsWith('-'))
+        .map(line => line.replace('-', '').trim());
     }
 
-    // Extract career roadmap
-    const roadmapMatch = text.match(/Career roadmap:(.*?)$/s);
+    // Parse Career Roadmap
+    const roadmapMatch = text.match(/\*\*Career Roadmap:\*\*([\s\S]*?)(?=$)/);
     if (roadmapMatch) {
-      sections.careerRoadmap = roadmapMatch[1].trim();
+      const roadmapText = roadmapMatch[1];
+      sections.careerRoadmap.highSchool = roadmapText.match(/High School:(.*?)(?=College:|$)/s)?.[1].trim();
+      sections.careerRoadmap.college = roadmapText.match(/College:(.*?)(?=Early Career:|$)/s)?.[1].trim();
+      sections.careerRoadmap.earlyCareer = roadmapText.match(/Early Career:(.*?)(?=Long-term|$)/s)?.[1].trim();
+      sections.careerRoadmap.longTerm = roadmapText.match(/Long-term Development:(.*?)(?=$)/s)?.[1].trim();
     }
 
     return sections;
