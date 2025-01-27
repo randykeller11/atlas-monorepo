@@ -75,7 +75,7 @@ function AppContent() {
   const [showResults, setShowResults] = useState(false);
   const [assessmentSummary, setAssessmentSummary] = useState(null);
   const [questionCount, setQuestionCount] = useState(0);
-  const [maxQuestions] = useState(5);
+  const [maxQuestions] = useState(12);
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -512,7 +512,7 @@ Here's an example of a properly formatted response:
               isMenuOpen={isMenuOpen}
               setIsMenuOpen={setIsMenuOpen}
               questionCount={questionCount}
-              maxQuestions={5}
+              maxQuestions={12}
             />
           )
         }
