@@ -318,6 +318,7 @@ Here's an example of a properly formatted response:
       }
     } catch (error) {
       console.error("Error:", error);
+      const threadId = sessions.get(sessionId);
 
       // Handle timeout specifically
       const timeoutMessage = {
@@ -545,6 +546,7 @@ Here's an example of a properly formatted response:
       }
     } catch (error) {
       console.error("Error:", error);
+      const threadId = sessions.get(sessionId);
       const errorMessage = {
         role: "assistant",
         content: "I apologize, but I'm having trouble generating a response. Please try again.",
