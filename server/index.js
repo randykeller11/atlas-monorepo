@@ -8,6 +8,55 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { users } from "./users.js";
 import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+
+// Conversation state management
+const conversationStates = new Map();
+
+const getConversationState = (sessionId) => {
+  if (!conversationStates.has(sessionId)) {
+    conversationStates.set(sessionId, {
+      currentSection: 'introduction',
+      questionsAsked: 0,
+      sectionsCompleted: {
+        interestExploration: 0,
+        workStyle: 0,
+        technicalAptitude: 0,
+        careerValues: 0
+      },
+      currentSectionQuestions: 0
+    });
+  }
+  return conversationStates.get(sessionId);
+};
+
+const updateConversationState = (sessionId, response) => {
+  const state = getConversationState(sessionId);
+  
+  if (response.type && ['multiple_choice', 'ranking', 'text'].includes(response.type)) {
+    state.questionsAsked++;
+    state.currentSectionQuestions++;
+  }
+
+  if (state.currentSection === 'introduction' && state.questionsAsked === 1) {
+    state.currentSection = 'interestExploration';
+  } else if (state.currentSection === 'interestExploration' && state.currentSectionQuestions === 3) {
+    state.currentSection = 'workStyle';
+    state.currentSectionQuestions = 0;
+    state.sectionsCompleted.interestExploration = 3;
+  } else if (state.currentSection === 'workStyle' && state.currentSectionQuestions === 2) {
+    state.currentSection = 'technicalAptitude';
+    state.currentSectionQuestions = 0;
+    state.sectionsCompleted.workStyle = 2;
+  } else if (state.currentSection === 'technicalAptitude' && state.currentSectionQuestions === 2) {
+    state.currentSection = 'careerValues';
+    state.currentSectionQuestions = 0;
+    state.sectionsCompleted.technicalAptitude = 2;
+  }
+
+  state.sectionsCompleted[state.currentSection]++;
+  conversationStates.set(sessionId, state);
+};
 
 // Initialize dotenv
 dotenv.config();
@@ -1020,17 +1069,25 @@ const parseSummaryResponse = (text) => {
 
 app.post("/api/message", async (req, res) => {
   const { message, conversation } = req.body;
+  const sessionId = req.headers['session-id'] || uuidv4();
   
   console.log('\n=== Processing Message ===');
   console.log('Message:', message);
   console.log('Conversation:', conversation);
   
   try {
-    // Ensure conversation is an array with the system message
-    const conversationArray = Array.isArray(conversation) ? conversation : [{
+    const state = getConversationState(sessionId);
+    
+    // Add state information to system message
+    const systemMessage = {
       role: "system",
-      content: "You are Atlas, a career guidance AI. You must respond with JSON in this format for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}. Please respond with JSON."
-    }];
+      content: `You are Atlas, a career guidance AI. Current section: ${state.currentSection}. Questions asked: ${state.questionsAsked}/10. 
+                Section progress: Interest Exploration (${state.sectionsCompleted.interestExploration}/3), 
+                Work Style (${state.sectionsCompleted.workStyle}/2), 
+                Technical Aptitude (${state.sectionsCompleted.technicalAptitude}/2), 
+                Career Values (${state.sectionsCompleted.careerValues}/3).
+                You must respond with JSON in this format for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}. Please respond with JSON.`
+    };
     
     // Check if this is a summary request
     if (message.includes('Please provide a comprehensive summary')) {
@@ -1219,6 +1276,14 @@ app.post("/api/initial-message", async (req, res) => {
     console.error("Error updating initial message:", error);
     res.status(500).json({ error: "Failed to update initial message" });
   }
+});
+
+app.post("/api/reset-session", (req, res) => {
+  const sessionId = req.headers['session-id'];
+  if (sessionId) {
+    conversationStates.delete(sessionId);
+  }
+  res.json({ message: "Session reset successfully" });
 });
 
 app.get("*", (req, res) => {
