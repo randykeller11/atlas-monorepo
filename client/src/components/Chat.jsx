@@ -158,9 +158,6 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     backgroundColor: '#f0f0f0',
-    '&:hover': {
-      backgroundColor: '#e0e0e0',
-    },
   },
   radioInput: {
     margin: '0',

@@ -173,11 +173,6 @@ const styles = {
     gap: '8px',
     fontSize: '16px',
     transition: 'all 0.3s ease',
-    '&:hover': {
-      backgroundColor: '#45a049',
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-    }
   },
   resultsContent: {
     marginBottom: '60px'

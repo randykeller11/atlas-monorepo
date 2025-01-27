@@ -11,9 +11,7 @@ import Admin from "./components/Admin";
 import Chat from "./components/Chat";
 import Results from "./components/Results";
 import Welcome from "./components/Welcome";
-import config from "./config";
-
-const { API_URL } = config;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 export const HamburgerMenu = ({ isOpen, toggleMenu }) => {
   return (
@@ -785,6 +783,20 @@ const globalStyles = `
 
   ::-webkit-scrollbar-thumb:hover {
     background: #b3b3b3;
+  }
+
+  .dropdownItem:hover {
+    background-color: #e0e0e0;
+  }
+
+  .downloadButton:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+
+  .radioOption:hover {
+    background-color: #e0e0e0;
   }
 `;
 
