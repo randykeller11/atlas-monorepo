@@ -61,7 +61,6 @@ export const Dropdown = ({ isOpen }) => {
 
 function AppContent() {
   const [showWelcome, setShowWelcome] = useState(true);
-  const [userName, setUserName] = useState('');
   const [conversationHistory, setConversationHistory] = useState([
     {
       role: "system",
@@ -79,7 +78,6 @@ function AppContent() {
   const [maxQuestions] = useState(10);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false);
   const [hasHandledName, setHasHandledName] = useState(false);
-  const [lastCountedResponse, setLastCountedResponse] = useState(null);
   const menuRef = useRef(null);
   const location = useLocation();
 

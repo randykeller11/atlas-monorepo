@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const OpenRouterAPI = require("./api/openrouter");
 const { instructions } = require("./instructions");
-const { formatting } = require("./formatting");
 require("dotenv").config();
 
 const api = new OpenRouterAPI({
@@ -1109,39 +1108,6 @@ app.post("/api/message", async (req, res) => {
   }
 
   // Set response timeout to avoid Heroku H12 error
-  res.setTimeout(75000, async () => {
-    try {
-      // Create a message requesting a simple text response
-      const timeoutMessage = await openai.beta.threads.messages.create(threadId, {
-        role: "user",
-        content: "Please rephrase your previous response as a simple text question without multiple choice options or ranking."
-      });
-
-      const run = await openai.beta.threads.runs.create(threadId, {
-        assistant_id: assistantId
-      });
-
-      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      while (runStatus.status !== "completed") {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      }
-
-      const messages = await openai.beta.threads.messages.list(threadId);
-      const response = messages.data[0].content[0].text.value;
-
-      res.json({
-        type: "text",
-        text: response
-      });
-    } catch (error) {
-      // Fallback if the retry fails
-      res.status(503).json({
-        type: "text",
-        text: "I apologize, but I'm having trouble processing your request. Could you please try asking your question again?"
-      });
-    }
-  });
 
   try {
     if (!sessions.has(sessionId)) {

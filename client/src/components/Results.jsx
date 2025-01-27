@@ -228,7 +228,7 @@ const Results = ({ summary }) => {
   // Check if any section is still loading
   const isLoading = Object.values(summary).some(section => section === null);
 
-  const renderSection = (title, content, sectionKey) => (
+  const renderSection = (title, content) => (
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>{title}</h2>
       <div style={styles.sectionContent}>
