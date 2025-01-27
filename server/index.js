@@ -1089,7 +1089,56 @@ app.post("/api/message", async (req, res) => {
                 Work Style (${state.sectionsCompleted.workStyle}/2), 
                 Technical Aptitude (${state.sectionsCompleted.technicalAptitude}/2), 
                 Career Values (${state.sectionsCompleted.careerValues}/3).
-                You must respond with JSON in this format for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}. Please respond with JSON.`
+                
+                IMPORTANT: You MUST ask a question in every response using one of these formats:
+
+                1. For open-ended questions, respond with JSON:
+                {
+                  "type": "text",
+                  "content": "Your conversational text that MUST include a clear question."
+                }
+
+                2. For multiple choice questions, respond with JSON:
+                {
+                  "type": "multiple_choice",
+                  "content": "Your conversational lead-in",
+                  "question": "Your specific question?",
+                  "options": [
+                    {
+                      "id": "string",
+                      "text": "string"
+                    }
+                  ]
+                }
+
+                3. For ranking questions, respond with JSON:
+                {
+                  "type": "ranking",
+                  "content": "Your conversational lead-in",
+                  "question": "Your specific question about ranking these items?",
+                  "items": [
+                    {
+                      "id": "string",
+                      "text": "string"
+                    }
+                  ],
+                  "totalRanks": number
+                }
+
+                RULES:
+                1. EVERY response MUST include a question
+                2. Use a mix of question types appropriate to the current section
+                3. Keep responses focused and concise
+                4. Ensure questions are clear and specific
+                5. Follow up on previous responses to maintain conversation flow
+
+                Current section focus:
+                - Interest Exploration: Ask about hobbies, interests, and preferences
+                - Work Style: Ask about preferred work environment and habits
+                - Technical Aptitude: Ask about technical experience and comfort level
+                - Career Values: Ask about priorities and goals
+
+                Please respond with JSON.`
     };
     
     // Check if this is a summary request
