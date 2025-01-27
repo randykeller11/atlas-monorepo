@@ -35,6 +35,13 @@ class OpenRouterAPI {
       }
 
       const data = await response.json();
+      console.log('OpenRouter API response received:', data);
+
+      // Validate response format
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Invalid response format from OpenRouter API');
+      }
+
       console.log('OpenRouter API response received');
       return data;
     } catch (error) {

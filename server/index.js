@@ -1023,8 +1023,12 @@ app.post("/api/message", async (req, res) => {
   
   console.log('\n=== Processing Message ===');
   console.log('Message:', message);
+  console.log('Conversation:', conversation);
   
   try {
+    // Ensure conversation is an array
+    const conversationArray = Array.isArray(conversation) ? conversation : [];
+    
     // Check if this is a summary request
     if (message.includes('Please provide a comprehensive summary')) {
       const completion = await api.getChatCompletion([
@@ -1032,12 +1036,16 @@ app.post("/api/message", async (req, res) => {
           role: "system",
           content: instructions
         },
-        ...conversation,
+        ...conversationArray,
         {
           role: "user",
           content: message
         }
       ]);
+
+      if (!completion.choices || !completion.choices[0]) {
+        throw new Error('Invalid API response format');
+      }
 
       const response = JSON.parse(completion.choices[0].message.content);
       res.json(response);
@@ -1050,12 +1058,16 @@ app.post("/api/message", async (req, res) => {
         role: "system",
         content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
       },
-      ...conversation,
+      ...conversationArray,
       {
         role: "user",
         content: message
       }
     ]);
+
+    if (!completion.choices || !completion.choices[0]) {
+      throw new Error('Invalid API response format');
+    }
 
     const response = JSON.parse(completion.choices[0].message.content);
     res.json(response);
