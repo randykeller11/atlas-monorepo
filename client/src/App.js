@@ -267,16 +267,12 @@ function AppContent() {
     const selectedOption = e.target.value;
     const question = conversation[messageIndex];
 
-    // If it's a direct text response (from ranking)
-    if (
-      typeof selectedOption === "string" &&
-      !question.options &&
-      question.type === "ranking"
-    ) {
-      const userMessage = {
-        role: "user",
-        content: selectedOption,
-      };
+    // Create user message
+    const userMessage = {
+      role: "user",
+      content: typeof selectedOption === 'string' ? selectedOption : 
+        question.options?.find((opt) => opt.id === selectedOption)?.text || selectedOption,
+    };
 
       setConversation((prev) => [...prev, userMessage]);
       setLoading(true);
