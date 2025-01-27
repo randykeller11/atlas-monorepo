@@ -75,17 +75,45 @@ function AppContent() {
   const [maxQuestions] = useState(10);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false);
   const [hasHandledName, setHasHandledName] = useState(false);
+  const [lastCountedResponse, setLastCountedResponse] = useState(null);
   const menuRef = useRef(null);
   const location = useLocation();
 
-  const incrementQuestionCount = () => {
-    const newCount = questionCount + 1;
-    console.log('\n=== Updating Question Count ===');
-    console.log('Previous count:', questionCount);
-    console.log('New count:', newCount);
-    console.log('Max questions:', maxQuestions);
-    setQuestionCount(newCount);
-    return newCount;
+  const handleQuestionCount = (responseData, messageContent) => {
+    const responseId = `${messageContent}-${Date.now()}`;
+    
+    if (hasHandledName && 
+        (responseData.type === 'multiple_choice' || 
+         responseData.type === 'ranking' ||
+         responseData.type === 'text') &&
+        responseId !== lastCountedResponse) {
+      
+      const newCount = questionCount + 1;
+      console.log('\n=== Question Count Update ===');
+      console.log('Response type:', responseData.type);
+      console.log('Previous count:', questionCount);
+      console.log('New count:', newCount);
+      console.log('Response ID:', responseId);
+      
+      setQuestionCount(newCount);
+      setLastCountedResponse(responseId);
+      
+      if (newCount === maxQuestions) {
+        console.log('Reached max questions, preparing results...');
+        setAssessmentSummary({
+          summaryOfResponses: null,
+          careerMatches: null,
+          salaryInformation: null,
+          educationPath: null,
+          portfolioRecommendations: null,
+          networkingSuggestions: null,
+          careerRoadmap: null
+        });
+        setShowResults(true);
+        return true;
+      }
+    }
+    return false;
   };
 
 
@@ -198,30 +226,8 @@ function AppContent() {
 
       setConversation((prev) => [...prev, assistantMessage]);
       
-      // Only increment count if this is a question response after name handling
-      if (hasHandledName && (
-        response.data.type === 'multiple_choice' || 
-        response.data.type === 'ranking' ||
-        response.data.type === 'text'
-      )) {
-        const newCount = incrementQuestionCount();
-        console.log('Question type:', response.data.type);
-        
-        if (newCount === maxQuestions) {
-          console.log('Reached max questions, preparing results...');
-          // Set initial null state for all summary sections
-          setAssessmentSummary({
-            summaryOfResponses: null,
-            careerMatches: null,
-            salaryInformation: null,
-            educationPath: null,
-            portfolioRecommendations: null,
-            networkingSuggestions: null,
-            careerRoadmap: null
-          });
-          
-          // Switch to results view
-          setShowResults(true);
+      // Check if we've reached max questions
+      if (handleQuestionCount(response.data, input)) {
 
           // Now request the summary
           try {
@@ -447,31 +453,8 @@ Here's an example of a properly formatted response:
       // Update conversation with assistant's response
       setConversation(prev => [...prev, assistantMessage]);
     
-      // Only increment count if this is a question response after name handling
-      if (hasHandledName && (
-        response.data.type === 'multiple_choice' || 
-        response.data.type === 'ranking' ||
-        response.data.type === 'text'
-      )) {
-        const newCount = incrementQuestionCount();
-        console.log('Question type:', response.data.type);
-        
-        if (newCount === maxQuestions) {
-          console.log('Reached max questions, preparing results...');
-          console.log('Reached max questions, preparing results...');
-          // Set initial null state for all summary sections
-          setAssessmentSummary({
-            summaryOfResponses: null,
-            careerMatches: null,
-            salaryInformation: null,
-            educationPath: null,
-            portfolioRecommendations: null,
-            networkingSuggestions: null,
-            careerRoadmap: null
-          });
-          
-          // Switch to results view
-          setShowResults(true);
+      // Check if we've reached max questions
+      if (handleQuestionCount(response.data, userMessage.content)) {
 
           // Now request the summary
           try {
