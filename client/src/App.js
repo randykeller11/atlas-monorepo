@@ -104,7 +104,7 @@ function AppContent() {
     }
 
     // Check if we're already at max questions
-    if (questionCount >= maxQuestions - 1) {
+    if (questionCount >= maxQuestions) {
       console.log('Already at max questions');
       return;
     }
@@ -114,7 +114,7 @@ function AppContent() {
     setQuestionCount(newCount);
 
     // Only show results if we've reached exactly maxQuestions
-    if (newCount === maxQuestions - 1) {
+    if (newCount === maxQuestions) {
       console.log('Reached max questions, preparing results...');
       setAssessmentSummary({
         summaryOfResponses: null,
