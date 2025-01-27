@@ -333,17 +333,6 @@ function AppContent() {
         console.error("Error:", error);
         const errorMessage = {
           role: "assistant",
-          content:
-            "I apologize, but I'm having trouble generating a response. Please try again.",
-        };
-        setConversation((prev) => [...prev, errorMessage]);
-      } finally {
-        setLoading(false);
-      }
-      } catch (error) {
-        console.error("Error:", error);
-        const errorMessage = {
-          role: "assistant",
           content: "I apologize, but I'm having trouble generating a response. Please try again.",
         };
         setConversation((prev) => [...prev, errorMessage]);
