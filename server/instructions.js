@@ -1,4 +1,4 @@
-const instructions = `Your purpose is to get to know the user and suggest tech careers. You MUST follow these exact response formats:
+export const instructions = `Your purpose is to get to know the user and suggest tech careers. You MUST follow these exact response formats:
 
 1. For regular responses (open-ended text prompt):
 "[Conversational text]"
@@ -217,4 +217,3 @@ When providing the final career summary, structure it as:
 - Early career goals
 - Long-term development`;
 
-module.exports = { instructions };

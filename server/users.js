@@ -1,4 +1,4 @@
-const users = [
+export const users = [
   {
     username: "randy",
     password: "!1Stocksaretight",
@@ -12,5 +12,3 @@ const users = [
     password: "NucoordAtlas",
   },
 ];
-
-module.exports = { users };
