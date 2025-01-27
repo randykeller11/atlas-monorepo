@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const OpenRouterAPI = require("./api/openrouter");
+import OpenRouterAPI from "./api/openrouter.mjs";
 const { instructions } = require("./instructions");
 require("dotenv").config();
 

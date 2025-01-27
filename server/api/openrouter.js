@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
 class OpenRouterAPI {
   constructor(config) {
@@ -44,4 +44,4 @@ class OpenRouterAPI {
   }
 }
 
-module.exports = OpenRouterAPI;
+export default OpenRouterAPI;
