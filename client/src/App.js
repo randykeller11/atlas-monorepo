@@ -398,6 +398,12 @@ Here's an example of a properly formatted response:
     setLoading(true);
 
     try {
+      // First check if this is the name response
+      if (!hasHandledName) {
+        setHasHandledName(true);
+        console.log('Name response handled, future responses will be counted');
+      }
+
       const response = await axios.post(
         `${API_URL}/api/message`,
         {
@@ -425,17 +431,16 @@ Here's an example of a properly formatted response:
       // Update conversation with assistant's response
       setConversation(prev => [...prev, assistantMessage]);
     
-      // Increment the question count after the first response
-      if (!hasHandledName) {
-        setHasHandledName(true);
-      } else {
+      // Only increment question count if we've already handled the name
+      if (hasHandledName) {
         const newCount = questionCount + 1;
         console.log('\n=== Updating Question Count ===');
         console.log('Previous count:', questionCount);
         console.log('New count:', newCount);
         setQuestionCount(newCount);
 
-          if (newCount === maxQuestions) {
+        if (newCount === maxQuestions) {
+          console.log('Reached max questions, preparing results...');
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
