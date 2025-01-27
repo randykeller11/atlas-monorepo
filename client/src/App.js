@@ -377,8 +377,8 @@ Here's an example of a properly formatted response:
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
 
-        // Only proceed with summary if this was the last question
-        if (newCount === maxQuestions) {
+        // Only proceed with summary if we've completed the last question
+        if (newCount > maxQuestions && !response.data.type) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
