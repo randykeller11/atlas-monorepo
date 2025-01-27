@@ -282,7 +282,23 @@ function AppContent() {
 
         // Check if we need to show results
         if (questionCount >= maxQuestions - 1) {
-          setShowResults(true);
+          try {
+            const summaryResponse = await axios.post(
+              `${API_URL}/api/message`,
+              {
+                message: `Please provide a comprehensive summary...`
+              },
+              {
+                headers: {
+                  "session-id": sessionId,
+                }
+              }
+            );
+            setAssessmentSummary(summaryResponse.data);
+            setShowResults(true);
+          } catch (error) {
+            console.error("Error generating summary:", error);
+          }
         }
     } catch (error) {
       console.error("Error:", error);
@@ -453,22 +469,6 @@ function AppContent() {
         if (questionCount >= maxQuestions - 1) {
           setShowResults(true);
         }
-`,
-              },
-              {
-                headers: {
-                  "session-id": sessionId,
-                },
-              }
-            );
-
-            setAssessmentSummary(summaryResponse.data);
-            setShowResults(true);
-          } catch (error) {
-            console.error("Error generating summary:", error);
-          }
-        }
-      }
     } catch (error) {
       console.error("Error:", error);
       
@@ -648,15 +648,9 @@ const styles = {
 
 const keyframes = `
   @keyframes bubble {
-    0% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-5px);
-    }
-    100% {
-      transform: translateY(0);
-    }
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0); }
   }
 `;
 
@@ -669,30 +663,17 @@ const globalStyles = `
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   }
 
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
 
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #f5f5f5;
-  }
-
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: #f5f5f5; }
   ::-webkit-scrollbar-thumb {
     background: #cccccc;
     border-radius: 4px;
   }
+  ::-webkit-scrollbar-thumb:hover { background: #b3b3b3; }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: #b3b3b3;
-  }
-
-  .dropdownItem:hover {
-    background-color: #e0e0e0;
-  }
+  .dropdownItem:hover { background-color: #e0e0e0; }
 
   .downloadButton:hover {
     background-color: #45a049;
@@ -700,9 +681,7 @@ const globalStyles = `
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   }
 
-  .radioOption:hover {
-    background-color: #e0e0e0;
-  }
+  .radioOption:hover { background-color: #e0e0e0; }
 `;
 
 const styleSheet = document.createElement("style");
