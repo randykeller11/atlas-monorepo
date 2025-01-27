@@ -75,8 +75,16 @@ function AppContent() {
   const [showResults, setShowResults] = useState(false);
   const [assessmentSummary, setAssessmentSummary] = useState(null);
   const [questionCount, setQuestionCount] = useState(0);
+  const [maxQuestions] = useState(5);
   const menuRef = useRef(null);
   const location = useLocation();
+
+  useEffect(() => {
+    console.log('Question count updated:', questionCount);
+    if (questionCount >= maxQuestions) {
+      console.log('Maximum questions reached, triggering summary');
+    }
+  }, [questionCount, maxQuestions]);
 
   useEffect(() => {
     // Reset chat if coming from admin with reset flag
@@ -234,6 +242,18 @@ function AppContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetAssessment = () => {
+    setQuestionCount(0);
+    setShowResults(false);
+    setAssessmentSummary(null);
+    setConversation([
+      {
+        role: "assistant",
+        content: "Hi, I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What's your name?",
+      },
+    ]);
   };
 
   const handleKeyPress = (e) => {

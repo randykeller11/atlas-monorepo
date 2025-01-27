@@ -440,13 +440,13 @@ const Chat = ({
 
         <div style={styles.progressSection}>
           <div style={styles.questionCounter}>
-            Question {questionCount} of {maxQuestions}
+            Question {Math.min(questionCount, maxQuestions)} of {maxQuestions}
           </div>
           <div style={styles.progressBarContainer}>
             <div 
               style={{
                 ...styles.progressBar,
-                height: `${(questionCount / maxQuestions) * 100}%`
+                height: `${Math.min((questionCount / maxQuestions) * 100, 100)}%`
               }}
             />
           </div>
