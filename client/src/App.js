@@ -76,17 +76,20 @@ function AppContent() {
   const [assessmentSummary, setAssessmentSummary] = useState(null);
   const [questionCount, setQuestionCount] = useState(0);
   const [maxQuestions] = useState(12);
+  const [isProcessingResponse, setIsProcessingResponse] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
   // Add helper function to determine if a message should count as a question
   const shouldCountAsQuestion = (message) => {
-    // Add debug logging
-    console.log('Checking message:', message);
+    // Add detailed logging
+    console.log('\n=== Checking Question Count ===');
+    console.log('Current question count:', questionCount);
+    console.log('Message being checked:', message);
     
     // Don't count if message is null or doesn't have required properties
     if (!message || (!message.text && !message.content)) {
-      console.log('Message invalid, not counting');
+      console.log('❌ Message invalid, not counting');
       return false;
     }
     
@@ -111,13 +114,13 @@ function AppContent() {
 
     // Check if the message contains any exclude phrases
     if (excludePhrases.some(phrase => text.includes(phrase.toLowerCase()))) {
-      console.log('Message contains exclude phrase, not counting');
+      console.log('❌ Message contains exclude phrase, not counting');
       return false;
     }
 
     // Count if it's a multiple choice or ranking question
     if (message.type === 'multiple_choice' || message.type === 'ranking') {
-      console.log('Message is multiple choice or ranking, counting');
+      console.log('✅ Message is multiple choice or ranking, counting');
       return true;
     }
 
@@ -125,17 +128,20 @@ function AppContent() {
     if (text.includes('?') && 
         !text.startsWith('i apologize') && 
         !text.startsWith('sorry')) {
-      console.log('Message contains question mark and is not an error, counting');
+      console.log('✅ Message contains question mark and is not an error, counting');
       return true;
     }
 
-    console.log('Message does not meet counting criteria');
+    console.log('❌ Message does not meet counting criteria');
     return false;
   };
 
   useEffect(() => {
-    console.log(`Question count updated: ${questionCount} / ${maxQuestions}`);
-  }, [questionCount, maxQuestions]);
+    console.log('\n=== Question Count Changed ===');
+    console.log('Current question count:', questionCount);
+    console.log('Max questions:', maxQuestions);
+    console.log('Show results:', showResults);
+  }, [questionCount, maxQuestions, showResults]);
 
   useEffect(() => {
     // Reset chat if coming from admin with reset flag
@@ -200,6 +206,8 @@ function AppContent() {
 
   const sendMessage = async (message, retryCount = 0) => {
     if (!input.trim()) return;
+    if (isProcessingResponse) return;
+    setIsProcessingResponse(true);
 
     const userMessage = {
       role: "user",
@@ -373,6 +381,7 @@ Here's an example of a properly formatted response:
       setConversation((prev) => [...prev, timeoutMessage]);
     } finally {
       setLoading(false);
+      setIsProcessingResponse(false);
     }
   };
 
@@ -383,6 +392,9 @@ Here's an example of a properly formatted response:
   };
 
   const handleOptionSelect = async (e, messageIndex) => {
+    if (isProcessingResponse) return;
+    setIsProcessingResponse(true);
+
     const selectedOption = e.target.value;
     const question = conversation[messageIndex];
 
@@ -426,8 +438,11 @@ Here's an example of a properly formatted response:
         // Increment counter if this should count as a question
         if (shouldCountAsQuestion(response.data)) {
           const newCount = questionCount + 1;
+          console.log('\n=== Updating Question Count ===');
+          console.log('Previous count:', questionCount);
+          console.log('New count:', newCount);
+          console.log('Max questions:', maxQuestions);
           setQuestionCount(newCount);
-          console.log(`Question count increased to ${newCount}`);
 
           // Only proceed with summary if we've completed the last question and it's not an interactive message
           if (newCount === maxQuestions && !response.data.type) {
