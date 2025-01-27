@@ -193,7 +193,7 @@ function AppContent() {
         setQuestionCount(newCount);
 
         // Only proceed with summary if we've completed the last question
-        if (newCount > maxQuestions && !response.data.type) {
+        if (newCount === maxQuestions && !response.data.type) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
@@ -378,7 +378,7 @@ Here's an example of a properly formatted response:
         setQuestionCount(newCount);
 
         // Only proceed with summary if we've completed the last question
-        if (newCount > maxQuestions && !response.data.type) {
+        if (newCount === maxQuestions && !response.data.type) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
