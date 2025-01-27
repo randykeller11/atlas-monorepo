@@ -1026,8 +1026,11 @@ app.post("/api/message", async (req, res) => {
   console.log('Conversation:', conversation);
   
   try {
-    // Ensure conversation is an array
-    const conversationArray = Array.isArray(conversation) ? conversation : [];
+    // Ensure conversation is an array with the system message
+    const conversationArray = Array.isArray(conversation) ? conversation : [{
+      role: "system",
+      content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
+    }];
     
     // Check if this is a summary request
     if (message.includes('Please provide a comprehensive summary')) {
@@ -1043,7 +1046,7 @@ app.post("/api/message", async (req, res) => {
         }
       ]);
 
-      if (!completion.choices || !completion.choices[0]) {
+      if (!completion?.choices?.[0]?.message?.content) {
         throw new Error('Invalid API response format');
       }
 
@@ -1054,10 +1057,6 @@ app.post("/api/message", async (req, res) => {
 
     // Regular message handling
     const completion = await api.getChatCompletion([
-      {
-        role: "system",
-        content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
-      },
       ...conversationArray,
       {
         role: "user",
@@ -1065,7 +1064,7 @@ app.post("/api/message", async (req, res) => {
       }
     ]);
 
-    if (!completion.choices || !completion.choices[0]) {
+    if (!completion?.choices?.[0]?.message?.content) {
       throw new Error('Invalid API response format');
     }
 
