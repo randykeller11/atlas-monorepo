@@ -212,36 +212,34 @@ function AppContent() {
     setInput("");
 
     try {
-      const response = await axios.post(
-        `${API_URL}/api/message`,
-        {
-          message: input,
-        },
-        {
-          headers: {
-            "session-id": sessionId,
+      try {
+        const response = await axios.post(
+          `${API_URL}/api/message`,
+          {
+            message: input,
           },
-          timeout: 25000,
-        }
-      );
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+            timeout: 25000,
+          }
+        );
 
-      const assistantMessage = {
-        role: "assistant",
-        content: response.data.text,
-        type: response.data.type,
-        question: response.data.question,
-        items: response.data.items,
-        totalRanks: response.data.totalRanks,
-        options: response.data.options,
-      };
+        const assistantMessage = {
+          role: "assistant",
+          content: response.data.text,
+          type: response.data.type,
+          question: response.data.question,
+          items: response.data.items,
+          totalRanks: response.data.totalRanks,
+          options: response.data.options,
+        };
 
-      setConversation((prev) => [...prev, assistantMessage]);
-      
-      // Check if we've reached max questions
-      if (handleQuestionCount(response.data, input)) {
-
-          // Now request the summary
-          try {
+        setConversation((prev) => [...prev, assistantMessage]);
+        
+        // Check if we've reached max questions
+        if (handleQuestionCount(response.data, input)) {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
               {
@@ -454,44 +452,42 @@ Here's an example of a properly formatted response:
     setLoading(true);
 
     try {
-      // First check if this is the name response
-      if (!hasHandledName) {
-        setHasHandledName(true);
-        console.log('Name response handled, future responses will be counted');
-      }
-
-      const response = await axios.post(
-        `${API_URL}/api/message`,
-        {
-          message: userMessage.content,
-        },
-        {
-          headers: {
-            "session-id": sessionId,
-          },
+      try {
+        // First check if this is the name response
+        if (!hasHandledName) {
+          setHasHandledName(true);
+          console.log('Name response handled, future responses will be counted');
         }
-      );
 
-      validateResponse(response.data);
+        const response = await axios.post(
+          `${API_URL}/api/message`,
+          {
+            message: userMessage.content,
+          },
+          {
+            headers: {
+              "session-id": sessionId,
+            },
+          }
+        );
 
-      const assistantMessage = {
-        role: "assistant",
-        content: response.data.text,
-        type: response.data.type,
-        question: response.data.question,
-        items: response.data.items,
-        totalRanks: response.data.totalRanks,
-        options: response.data.options,
-      };
+        validateResponse(response.data);
 
-      // Update conversation with assistant's response
-      setConversation(prev => [...prev, assistantMessage]);
-    
-      // Check if we've reached max questions
-      if (handleQuestionCount(response.data, userMessage.content)) {
+        const assistantMessage = {
+          role: "assistant",
+          content: response.data.text,
+          type: response.data.type,
+          question: response.data.question,
+          items: response.data.items,
+          totalRanks: response.data.totalRanks,
+          options: response.data.options,
+        };
 
-          // Now request the summary
-          try {
+        // Update conversation with assistant's response
+        setConversation(prev => [...prev, assistantMessage]);
+      
+        // Check if we've reached max questions
+        if (handleQuestionCount(response.data, userMessage.content)) {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
               {
