@@ -332,6 +332,8 @@ Here's an example of a properly formatted response:
     setUserName(name);
     setShowWelcome(false);
     setLoading(true);
+    // Set hasHandledName to true immediately since we're past the welcome screen
+    setHasHandledName(true);
 
     try {
       const response = await axios.post(
