@@ -1177,21 +1177,17 @@ app.post("/api/message", async (req, res) => {
     }
 
     // Regular message handling
-    const completion = await openai.chat.completions.create({
-      model: "openai/gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
-        },
-        ...conversation,
-        {
-          role: "user",
-          content: message
-        }
-      ],
-      response_format: { type: "json_object" }
-    });
+    const completion = await api.getChatCompletion([
+      {
+        role: "system",
+        content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
+      },
+      ...conversation,
+      {
+        role: "user",
+        content: message
+      }
+    ]);
 
     const response = JSON.parse(completion.choices[0].message.content);
     res.json(response);
