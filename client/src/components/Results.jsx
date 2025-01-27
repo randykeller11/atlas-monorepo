@@ -9,6 +9,66 @@ const styles = {
     backgroundColor: '#f5f5f5',
     borderRadius: '8px',
   },
+  careerMatch: {
+    backgroundColor: '#f8f8f8',
+    padding: '15px',
+    borderRadius: '8px',
+    marginBottom: '15px'
+  },
+  matchHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  matchPercentage: {
+    width: '60px',
+    textAlign: 'right',
+    marginRight: '15px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#4CAF50'
+  },
+  matchTitle: {
+    flex: 1,
+    fontSize: '18px',
+    fontWeight: '500',
+    marginLeft: '15px'
+  },
+  matchExplanation: {
+    marginTop: '8px',
+    color: '#666',
+    fontSize: '14px',
+    lineHeight: '1.4'
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: '12px',
+    backgroundColor: '#e0e0e0',
+    borderRadius: '6px',
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: '6px',
+    transition: 'width 0.3s ease'
+  },
+  educationSection: {
+    marginBottom: '20px'
+  },
+  educationList: {
+    listStyle: 'none',
+    padding: 0,
+    margin: '10px 0'
+  },
+  educationItem: {
+    padding: '8px 12px',
+    backgroundColor: '#f8f8f8',
+    borderRadius: '4px',
+    marginBottom: '8px',
+    fontSize: '14px',
+    lineHeight: '1.4'
+  },
   header: {
     textAlign: 'center',
     marginBottom: '30px',
@@ -203,18 +263,20 @@ const Results = ({ summary }) => {
       {renderSection("Career Matches", (
         <div>
           {summary.careerMatches?.map((match, index) => (
-            <div key={index} style={styles.roleMatch}>
-              <span style={styles.percentage}>{match.match}%</span>
-              <div style={styles.progressBar}>
-                <div 
-                  style={{
-                    ...styles.progressFill,
-                    width: `${match.match}%`,
-                  }}
-                />
+            <div key={index} style={styles.careerMatch}>
+              <div style={styles.matchHeader}>
+                <span style={styles.matchPercentage}>{match.match}%</span>
+                <div style={styles.progressBarContainer}>
+                  <div 
+                    style={{
+                      ...styles.progressBarFill,
+                      width: `${match.match}%`
+                    }}
+                  />
+                </div>
+                <span style={styles.matchTitle}>{match.role}</span>
               </div>
-              <span style={{ marginLeft: '10px' }}>{match.role}</span>
-              <p>{match.explanation}</p>
+              <p style={styles.matchExplanation}>{match.explanation}</p>
             </div>
           ))}
         </div>
@@ -233,18 +295,36 @@ const Results = ({ summary }) => {
 
       {renderSection("Education Path", (
         <div>
-          <h3>Recommended Courses</h3>
-          <ul>
-            {summary.educationPath?.courses?.map((course, index) => (
-              <li key={index}>{course}</li>
-            ))}
-          </ul>
-          <h3>Certifications</h3>
-          <ul>
-            {summary.educationPath?.certifications?.map((cert, index) => (
-              <li key={index}>{cert}</li>
-            ))}
-          </ul>
+          <div style={styles.educationSection}>
+            <h3>Recommended Courses</h3>
+            <ul style={styles.educationList}>
+              {Array.isArray(summary.educationPath?.courses) && summary.educationPath.courses.map((course, index) => (
+                <li key={index} style={styles.educationItem}>
+                  {course}
+                </li>
+              ))}
+              {(!Array.isArray(summary.educationPath?.courses) || summary.educationPath?.courses.length === 0) && (
+                <li style={styles.educationItem}>
+                  No specific courses recommended at this time.
+                </li>
+              )}
+            </ul>
+          </div>
+          <div style={styles.educationSection}>
+            <h3>Certifications</h3>
+            <ul style={styles.educationList}>
+              {Array.isArray(summary.educationPath?.certifications) && summary.educationPath.certifications.map((cert, index) => (
+                <li key={index} style={styles.educationItem}>
+                  {cert}
+                </li>
+              ))}
+              {(!Array.isArray(summary.educationPath?.certifications) || summary.educationPath?.certifications.length === 0) && (
+                <li style={styles.educationItem}>
+                  No specific certifications recommended at this time.
+                </li>
+              )}
+            </ul>
+          </div>
         </div>
       ), 'educationPath')}
 
