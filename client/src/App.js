@@ -78,17 +78,16 @@ function AppContent() {
   const location = useLocation();
 
   const incrementQuestionCount = async (responseData, messageContent) => {
-    const responseId = `${messageContent}-${Date.now()}`;
-    
     console.log('\n=== Question Count Check ===');
     console.log('Current count:', questionCount);
     console.log('Has handled name:', hasHandledName);
     console.log('Response type:', responseData.type);
     console.log('Message content:', messageContent);
     
-    // Only increment if we haven't reached max questions
-    if (questionCount >= maxQuestions) {
-      console.log('Already at or past max questions');
+    // Set hasHandledName after the first response
+    if (!hasHandledName) {
+      setHasHandledName(true);
+      console.log('First response handled, future responses will be counted');
       return;
     }
 
@@ -99,12 +98,18 @@ function AppContent() {
       return;
     }
 
+    // Check if we're already at max questions
+    if (questionCount >= maxQuestions - 1) {
+      console.log('Already at max questions');
+      return;
+    }
+
     const newCount = questionCount + 1;
     console.log('Incrementing count to:', newCount);
     setQuestionCount(newCount);
 
-    // If we've reached max questions, prepare results
-    if (newCount === maxQuestions) {
+    // Only show results if we've reached exactly maxQuestions
+    if (newCount === maxQuestions - 1) {
       console.log('Reached max questions, preparing results...');
       setAssessmentSummary({
         summaryOfResponses: null,
@@ -280,26 +285,7 @@ function AppContent() {
         setConversation((prev) => [...prev, assistantMessage]);
         await incrementQuestionCount(response.data, input);
 
-        // Check if we need to show results
-        if (questionCount >= maxQuestions - 1) {
-          try {
-            const summaryResponse = await axios.post(
-              `${API_URL}/api/message`,
-              {
-                message: `Please provide a comprehensive summary...`
-              },
-              {
-                headers: {
-                  "session-id": sessionId,
-                }
-              }
-            );
-            setAssessmentSummary(summaryResponse.data);
-            setShowResults(true);
-          } catch (error) {
-            console.error("Error generating summary:", error);
-          }
-        }
+        // Remove results check - now handled in incrementQuestionCount
     } catch (error) {
       console.error("Error:", error);
       
@@ -390,8 +376,6 @@ function AppContent() {
       };
 
       setConversation([assistantMessage]);
-      // Set hasHandledName after the first response
-      setHasHandledName(true);
     } catch (error) {
       console.error("Error:", error);
       // Set a fallback message if the API call fails
@@ -465,10 +449,7 @@ function AppContent() {
         setConversation(prev => [...prev, assistantMessage]);
         await incrementQuestionCount(response.data, userMessage.content);
         
-        // Check if we need to show results
-        if (questionCount >= maxQuestions - 1) {
-          setShowResults(true);
-        }
+        // Remove results check - now handled in incrementQuestionCount
     } catch (error) {
       console.error("Error:", error);
       
