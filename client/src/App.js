@@ -78,6 +78,16 @@ function AppContent() {
   const menuRef = useRef(null);
   const location = useLocation();
 
+  const incrementQuestionCount = () => {
+    const newCount = questionCount + 1;
+    console.log('\n=== Updating Question Count ===');
+    console.log('Previous count:', questionCount);
+    console.log('New count:', newCount);
+    console.log('Max questions:', maxQuestions);
+    setQuestionCount(newCount);
+    return newCount;
+  };
+
 
   useEffect(() => {
     console.log('\n=== State Update ===');
@@ -188,13 +198,13 @@ function AppContent() {
 
       setConversation((prev) => [...prev, assistantMessage]);
       
-      // Only count questions after the name response
-      if (hasHandledName) {
-        const newCount = questionCount + 1;
-        setQuestionCount(newCount);
-        console.log(`Question count increased to ${newCount}`);
-
+      // Only increment count if this is a question response after name handling
+      if (hasHandledName && (response.data.type === 'multiple_choice' || response.data.type === 'ranking')) {
+        const newCount = incrementQuestionCount();
+        console.log('Question type:', response.data.type);
+        
         if (newCount === maxQuestions) {
+          console.log('Reached max questions, preparing results...');
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
@@ -433,16 +443,13 @@ Here's an example of a properly formatted response:
       // Update conversation with assistant's response
       setConversation(prev => [...prev, assistantMessage]);
     
-      // Only increment question count if we've already handled the name
-      if (hasHandledName) {
-        const newCount = questionCount + 1;
-        console.log('\n=== Updating Question Count ===');
-        console.log('Previous count:', questionCount);
-        console.log('New count:', newCount);
-        setQuestionCount(newCount);
-
-        // Only proceed with summary if we've completed all questions
+      // Only increment count if this is a question response after name handling
+      if (hasHandledName && (response.data.type === 'multiple_choice' || response.data.type === 'ranking')) {
+        const newCount = incrementQuestionCount();
+        console.log('Question type:', response.data.type);
+        
         if (newCount === maxQuestions) {
+          console.log('Reached max questions, preparing results...');
           console.log('Reached max questions, preparing results...');
           // Set initial null state for all summary sections
           setAssessmentSummary({
