@@ -130,27 +130,86 @@ const detectQuestionType = (text) => {
 };
 
 const extractOptions = (text) => {
-  // Try different option formats
+  // Try different option formats in order of preference
   const patterns = [
     // A) or (A) format
-    /(?:[A-D]\)|\([A-D]\))\s*([^A-D\n]+?)(?=(?:\s*(?:[A-D]\)|\([A-D]\))|$))/g,
-    // Numbered format
-    /(?:\d+\.)\s*([^\d\n]+?)(?=(?:\s*\d+\.|$))/g,
-    // Bullet points
-    /(?:•|-)\s*([^\n•-]+?)(?=(?:\s*(?:•|-)|$))/g
+    {
+      pattern: /(?:[A-D]\)|\([A-D]\))\s*([^A-D\n]+?)(?=(?:\s*(?:[A-D]\)|\([A-D]\))|$))/g,
+      transform: matches => matches.map((m, i) => ({
+        id: String.fromCharCode(97 + i),
+        text: m[1].trim()
+      }))
+    },
+    // Numbered format (1., 2., etc)
+    {
+      pattern: /(?:\d+\.)\s*([^\d\n]+?)(?=(?:\s*\d+\.|$))/g,
+      transform: matches => matches.map((m, i) => ({
+        id: String.fromCharCode(97 + i),
+        text: m[1].trim()
+      }))
+    },
+    // Bullet points or dashes
+    {
+      pattern: /(?:•|-|\*)\s*([^\n•\-\*]+?)(?=(?:\s*(?:•|-|\*)|$))/g,
+      transform: matches => matches.map((m, i) => ({
+        id: String.fromCharCode(97 + i),
+        text: m[1].trim()
+      }))
+    },
+    // Options with labels (Option 1:, Choice A:, etc)
+    {
+      pattern: /(?:option|choice)\s*(?:[A-D]|\d+):\s*([^\n]+)/gi,
+      transform: matches => matches.map((m, i) => ({
+        id: String.fromCharCode(97 + i),
+        text: m[1].trim()
+      }))
+    }
   ];
 
-  for (const pattern of patterns) {
+  for (const {pattern, transform} of patterns) {
     const matches = Array.from(text.matchAll(pattern));
     if (matches.length >= 2) {
-      return matches.map((match, index) => ({
-        id: String.fromCharCode(97 + index), // a, b, c, d
-        text: match[1].trim()
-      }));
+      const options = transform(matches);
+      
+      // Validate and clean the options
+      const validOptions = options.filter(opt => 
+        opt.text && 
+        opt.text.length > 0 && 
+        !opt.text.match(/^\s*$/)
+      );
+
+      if (validOptions.length >= 2) {
+        return validOptions;
+      }
     }
   }
 
-  return null;
+  // If no matches found with patterns, try splitting on newlines
+  const lines = text.split('\n');
+  const options = [];
+  let foundStart = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Look for lines that start with any kind of list marker
+    if (/^(?:[A-D]\)|\([A-D]\)|\d+\.|•|-|\*)\s+\w/.test(trimmed)) {
+      foundStart = true;
+      const optionText = trimmed.replace(/^(?:[A-D]\)|\([A-D]\)|\d+\.|•|-|\*)\s+/, '').trim();
+      if (optionText) {
+        options.push({
+          id: String.fromCharCode(97 + options.length),
+          text: optionText
+        });
+      }
+    } else if (foundStart && trimmed && !trimmed.endsWith('?')) {
+      // Continue previous option if it's a wrapped line
+      if (options.length > 0) {
+        options[options.length - 1].text += ' ' + trimmed;
+      }
+    }
+  }
+
+  return options.length >= 2 ? options : null;
 };
 
 const extractQuestion = (text) => {
