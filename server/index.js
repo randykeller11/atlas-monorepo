@@ -1193,6 +1193,7 @@ app.post("/api/message", async (req, res) => {
       
       // Validate the response has the required fields
       if (!parsedResponse.type || !parsedResponse.content) {
+        console.error('Invalid response format:', parsedResponse);
         throw new Error('Invalid response format: missing required fields');
       }
       

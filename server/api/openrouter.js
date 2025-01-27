@@ -32,6 +32,7 @@ class OpenRouterAPI {
       console.log('Status:', response.status);
       console.log('Headers:', JSON.stringify(Object.fromEntries(response.headers), null, 2));
       console.log('Body:', JSON.stringify(data, null, 2));
+      console.log('Raw content:', data?.choices?.[0]?.message?.content);
 
       if (!response.ok) {
         console.error('\n=== OpenRouter API Error ===');

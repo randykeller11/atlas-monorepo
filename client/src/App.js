@@ -447,12 +447,16 @@ Long-term Development: [path]`,
           }
         );
 
-        validateResponse(response.data);
+        // Add validation check
+        if (!response.data || !response.data.content) {
+          console.error('Invalid response format:', response.data);
+          throw new Error('Empty or invalid response received');
+        }
 
         const assistantMessage = {
           role: "assistant",
           content: response.data.content,
-          type: response.data.type,
+          type: response.data.type || 'text',  // Provide default type
           question: response.data.question,
           items: response.data.items,
           totalRanks: response.data.totalRanks,
