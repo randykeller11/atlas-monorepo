@@ -1145,8 +1145,17 @@ app.post("/api/message", async (req, res) => {
       // Update conversation state based on response
       updateConversationState(sessionId, parsedResponse);
       
-      // Send the parsed response back to the client
-      res.json(parsedResponse);
+      // Add state to response
+      const responseWithState = {
+        ...parsedResponse,
+        _state: {
+          questionsAsked: state.questionsAsked,
+          currentSection: state.currentSection,
+          sectionsCompleted: state.sectionsCompleted
+        }
+      };
+      
+      res.json(responseWithState);
     } catch (parseError) {
       console.error('Error parsing response:', parseError);
       console.error('Raw response:', completion.choices[0].message.content);

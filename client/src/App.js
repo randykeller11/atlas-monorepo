@@ -84,66 +84,48 @@ function AppContent() {
 
   const incrementQuestionCount = async (responseData, messageContent) => {
     console.log('\n=== Question Count Check ===');
-    console.log('Current count:', questionCount);
-    console.log('Has handled name:', hasHandledName);
-    console.log('Response type:', responseData.type);
-    console.log('Message content:', messageContent);
+    console.log('Response state:', responseData._state);
     
-    // Set hasHandledName after the first response
     if (!hasHandledName) {
       setHasHandledName(true);
-      console.log('First response handled, future responses will be counted');
       return;
     }
 
-    // Only count if it's a valid question type
-    if (!responseData.type || 
-        !['multiple_choice', 'ranking', 'text'].includes(responseData.type)) {
-      console.log('Not a countable question type');
-      return;
-    }
-
-    // Check if we're already at max questions
-    if (questionCount >= maxQuestions) {
-      console.log('Already at max questions');
-      return;
-    }
-
-    const newCount = questionCount + 1;
-    console.log('Incrementing count to:', newCount);
-    setQuestionCount(newCount);
-
-    // Only show results if we've reached exactly maxQuestions
-    if (newCount === maxQuestions) {
-      console.log('Reached max questions, preparing results...');
-      setAssessmentSummary({
-        summaryOfResponses: null,
-        careerMatches: null,
-        salaryInformation: null,
-        educationPath: null,
-        portfolioRecommendations: null,
-        networkingSuggestions: null,
-        careerRoadmap: null
-      });
-      setShowResults(true);
+    if (responseData._state) {
+      const newCount = responseData._state.questionsAsked;
+      console.log('Updating question count to:', newCount);
+      setQuestionCount(newCount);
       
-      // Request summary with special flag
-      try {
-        const summaryResponse = await axios.post(
-          `${API_URL}/api/message`,
-          {
-            message: `[GENERATE_SUMMARY] Please provide a comprehensive summary of our conversation.`,
-            conversation: conversationHistory
-          },
-          {
-            headers: {
-              "session-id": sessionId,
+      if (newCount === maxQuestions) {
+        console.log('Reached max questions, preparing results...');
+        setAssessmentSummary({
+          summaryOfResponses: null,
+          careerMatches: null,
+          salaryInformation: null,
+          educationPath: null,
+          portfolioRecommendations: null,
+          networkingSuggestions: null,
+          careerRoadmap: null
+        });
+        setShowResults(true);
+        
+        try {
+          const summaryResponse = await axios.post(
+            `${API_URL}/api/message`,
+            {
+              message: `[GENERATE_SUMMARY] Please provide a comprehensive summary of our conversation.`,
+              conversation: conversationHistory
             },
-          }
-        );
-        setAssessmentSummary(summaryResponse.data);
-      } catch (error) {
-        console.error("Error generating summary:", error);
+            {
+              headers: {
+                "session-id": sessionId,
+              },
+            }
+          );
+          setAssessmentSummary(summaryResponse.data);
+        } catch (error) {
+          console.error("Error generating summary:", error);
+        }
       }
     }
   };
