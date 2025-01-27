@@ -49,48 +49,49 @@ const styles = {
     backgroundColor: '#4CAF50',
     transition: 'width 0.3s ease',
   },
-  loadingSection: {
-    minHeight: '150px',
+  loadingOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000
+  },
+  loadingContent: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: '6px',
-    margin: '10px 0',
-    padding: '20px'
+    gap: '20px'
   },
   loadingLogo: {
-    width: '120px',
-    height: 'auto',
-    marginBottom: '20px'
+    width: '200px',
+    height: 'auto'
   },
   loadingProgressContainer: {
-    width: '100%',
-    maxWidth: '300px',
+    width: '300px',
     textAlign: 'center'
   },
   loadingProgress: {
     width: '100%',
-    height: '8px',
+    height: '4px',
     backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    position: 'relative'
+    borderRadius: '2px',
+    overflow: 'hidden'
   },
   loadingProgressBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
     height: '100%',
     backgroundColor: '#4CAF50',
-    borderRadius: '4px',
     animation: 'loading 2s infinite ease-in-out'
   },
   loadingText: {
     margin: '10px 0 0 0',
     color: '#666',
-    fontSize: '14px'
+    fontSize: '16px',
+    fontWeight: '500'
   },
   sectionContent: {
     opacity: 1,
@@ -152,36 +153,39 @@ const Results = ({ summary }) => {
   if (!summary) return null;
 
   const LoadingPlaceholder = () => (
-    <div style={styles.loadingSection}>
-      <img 
-        src="/images/NucoordLogo.PNG"
-        alt="Nucoord Logo"
-        style={styles.loadingLogo}
-      />
-      <div style={styles.loadingProgressContainer}>
-        <div style={styles.loadingProgress}>
-          <div style={styles.loadingProgressBar}></div>
+    <div style={styles.loadingOverlay}>
+      <div style={styles.loadingContent}>
+        <img 
+          src="/images/NucoordLogo.PNG"
+          alt="Nucoord Logo"
+          style={styles.loadingLogo}
+        />
+        <div style={styles.loadingProgressContainer}>
+          <div style={styles.loadingProgress}>
+            <div style={styles.loadingProgressBar}></div>
+          </div>
+          <p style={styles.loadingText}>Generating your career assessment...</p>
         </div>
-        <p style={styles.loadingText}>Generating results...</p>
       </div>
     </div>
   );
 
+  // Check if any section is still loading
+  const isLoading = Object.values(summary).some(section => section === null);
+
   const renderSection = (title, content, sectionKey) => (
     <div style={styles.section}>
       <h2 style={styles.sectionTitle}>{title}</h2>
-      {summary[sectionKey] === null ? (
-        <LoadingPlaceholder />
-      ) : (
-        <div style={styles.sectionContent}>
-          {content}
-        </div>
-      )}
+      <div style={styles.sectionContent}>
+        {content}
+      </div>
     </div>
   );
 
   return (
     <div ref={resultsRef} style={styles.container}>
+      {isLoading && <LoadingPlaceholder />}
+      
       <div style={styles.resultsContent}>
       <div style={styles.header}>
         <h1>Your Career Assessment Results</h1>
@@ -297,11 +301,12 @@ const Results = ({ summary }) => {
       </style>
       </div>
 
-      <button 
-        id="downloadButton"
-        onClick={handleDownload} 
-        style={styles.downloadButton}
-      >
+      {!isLoading && (
+        <button 
+          id="downloadButton"
+          onClick={handleDownload} 
+          style={styles.downloadButton}
+        >
         <svg 
           width="20" 
           height="20" 
@@ -317,7 +322,8 @@ const Results = ({ summary }) => {
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
         Download PDF
-      </button>
+        </button>
+      )}
     </div>
   );
 };
