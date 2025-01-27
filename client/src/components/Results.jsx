@@ -248,30 +248,30 @@ const Results = ({ summary }) => {
 
       {renderSection("Summary of Responses", (
         <div>
-          <p><strong>Interest Exploration:</strong> {summary.Summary_of_Responses?.["Interest Exploration"]}</p>
-          <p><strong>Technical Aptitude:</strong> {summary.Summary_of_Responses?.["Technical Aptitude"]}</p>
-          <p><strong>Work Style:</strong> {summary.Summary_of_Responses?.["Work Style"]}</p>
-          <p><strong>Career Values:</strong> {summary.Summary_of_Responses?.["Career Values"]}</p>
+          <p><strong>Interest Exploration:</strong> {summary["Summary of Responses"]?.["Interest Exploration"]}</p>
+          <p><strong>Technical Aptitude:</strong> {summary["Summary of Responses"]?.["Technical Aptitude"]}</p>
+          <p><strong>Work Style:</strong> {summary["Summary of Responses"]?.["Work Style"]}</p>
+          <p><strong>Career Values:</strong> {summary["Summary of Responses"]?.["Career Values"]}</p>
         </div>
       ), 'Summary_of_Responses')}
 
       {renderSection("Career Matches", (
         <div>
-          {summary.Career_Matches?.map((match, index) => (
+          {Object.values(summary["Career Matches"] || {}).map((match, index) => (
             <div key={index} style={styles.careerMatch}>
               <div style={styles.matchHeader}>
-                <span style={styles.matchPercentage}>{match.percentage || match.match}%</span>
+                <span style={styles.matchPercentage}>{match.MatchPercentage?.replace('%', '')}%</span>
                 <div style={styles.progressBarContainer}>
                   <div 
                     style={{
                       ...styles.progressBarFill,
-                      width: `${match.percentage || match.match}%`
+                      width: match.MatchPercentage
                     }}
                   />
                 </div>
-                <span style={styles.matchTitle}>{match.role}</span>
+                <span style={styles.matchTitle}>{match.Role}</span>
               </div>
-              <p style={styles.matchExplanation}>{match.explanation}</p>
+              <p style={styles.matchExplanation}>{match.Explanation}</p>
             </div>
           ))}
         </div>
@@ -279,10 +279,11 @@ const Results = ({ summary }) => {
 
       {renderSection("Salary Information", (
         <div>
-          {summary.Salary_Information?.map((range, index) => (
+          {Object.entries(summary["Salary Information"] || {}).map(([role, info], index) => (
             <div key={index}>
-              <h3>{range.role}</h3>
-              <p>{range.salary || range.range}</p>
+              <h3>{role}</h3>
+              <p>{info.SalaryRange}</p>
+              <p><em>Career Progression: {info.Progression}</em></p>
             </div>
           ))}
         </div>
@@ -293,7 +294,7 @@ const Results = ({ summary }) => {
           <div style={styles.educationSection}>
             <h3>Recommended Courses</h3>
             <ul style={styles.educationList}>
-              {Array.isArray(summary.Education_Path?.Courses) && summary.Education_Path.Courses.map((course, index) => (
+              {Array.isArray(summary["Education Path"]?.Courses) && summary["Education Path"].Courses.map((course, index) => (
                 <li key={index} style={styles.educationItem}>
                   {course}
                 </li>
@@ -303,7 +304,7 @@ const Results = ({ summary }) => {
           <div style={styles.educationSection}>
             <h3>Certifications</h3>
             <ul style={styles.educationList}>
-              {Array.isArray(summary.Education_Path?.Certifications) && summary.Education_Path.Certifications.map((cert, index) => (
+              {Array.isArray(summary["Education Path"]?.Certifications) && summary["Education Path"].Certifications.map((cert, index) => (
                 <li key={index} style={styles.educationItem}>
                   {cert}
                 </li>
@@ -315,30 +316,57 @@ const Results = ({ summary }) => {
 
       {renderSection("Portfolio Recommendations", (
         <ul>
-          {summary.Portfolio_Recommendations?.map((suggestion, index) => (
-            <li key={index}>{suggestion}</li>
+          {summary["Portfolio Recommendations"]?.ProjectIdeas?.map((idea, index) => (
+            <li key={index}>{idea}</li>
+          ))}
+          {summary["Portfolio Recommendations"]?.SkillBuildingActivities?.map((activity, index) => (
+            <li key={`skill-${index}`}>{activity}</li>
+          ))}
+          {summary["Portfolio Recommendations"]?.OnlinePresenceSuggestions?.map((suggestion, index) => (
+            <li key={`online-${index}`}>{suggestion}</li>
           ))}
         </ul>
       ), 'Portfolio_Recommendations')}
 
       {renderSection("Networking Suggestions", (
-        <ul>
-          {summary.Networking_Suggestions?.map((suggestion, index) => (
-            <li key={index}>{suggestion}</li>
-          ))}
-        </ul>
+        <div>
+          <h4>Professional Organizations</h4>
+          <ul>
+            {summary["Networking Suggestions"]?.ProfessionalOrganizations?.map((org, index) => (
+              <li key={`prof-${index}`}>{org}</li>
+            ))}
+          </ul>
+          <h4>Online Communities</h4>
+          <ul>
+            {summary["Networking Suggestions"]?.OnlineCommunities?.map((community, index) => (
+              <li key={`online-${index}`}>{community}</li>
+            ))}
+          </ul>
+          <h4>Local Tech Groups</h4>
+          <ul>
+            {summary["Networking Suggestions"]?.LocalTechGroups?.map((group, index) => (
+              <li key={`local-${index}`}>{group}</li>
+            ))}
+          </ul>
+          <h4>Student Organizations</h4>
+          <ul>
+            {summary["Networking Suggestions"]?.StudentOrganizations?.map((org, index) => (
+              <li key={`student-${index}`}>{org}</li>
+            ))}
+          </ul>
+        </div>
       ), 'Networking_Suggestions')}
 
       {renderSection("Career Roadmap", (
         <div>
           <h3>High School</h3>
-          <p>{summary.Career_Roadmap?.["High School"]}</p>
+          <p>{summary["Career Roadmap"]?.HighSchool}</p>
           <h3>College</h3>
-          <p>{summary.Career_Roadmap?.College}</p>
+          <p>{summary["Career Roadmap"]?.College}</p>
           <h3>Early Career</h3>
-          <p>{summary.Career_Roadmap?.["Early Career"]}</p>
-          <h3>Long-term Development</h3>
-          <p>{summary.Career_Roadmap?.["Long-term Development"]}</p>
+          <p>{summary["Career Roadmap"]?.EarlyCareer}</p>
+          <h3>Long Term Development</h3>
+          <p>{summary["Career Roadmap"]?.LongTermDevelopment}</p>
         </div>
       ), 'Career_Roadmap')}
 
