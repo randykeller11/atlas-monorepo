@@ -1186,24 +1186,24 @@ app.post("/api/message", async (req, res) => {
     try {
       // Parse the response content as JSON
       const parsedResponse = JSON.parse(completion.choices[0].message.content);
-      
+        
       // Log the parsed response for debugging
       console.log('\n=== Parsed Response ===');
       console.log(JSON.stringify(parsedResponse, null, 2));
-      
+        
       // Update conversation state based on response
       updateConversationState(sessionId, parsedResponse);
-      
+        
       // Add state to response
       const responseWithState = {
-        ...parsedResponse,
+        ...parsedResponse,  // Use the entire parsed response as is
         _state: {
           questionsAsked: state.questionsAsked,
           currentSection: state.currentSection,
           sectionsCompleted: state.sectionsCompleted
         }
       };
-      
+        
       res.json(responseWithState);
     } catch (parseError) {
       console.error('Error parsing response:', parseError);

@@ -309,7 +309,7 @@ Long-term Development: [path]`,
           
           setConversation(prev => [...prev, {
             role: "assistant",
-            content: response.data.text,
+            content: response.data.content,  // Changed from response.data.text
             type: "text"
           }]);
         } catch (retryError) {
@@ -373,7 +373,7 @@ Long-term Development: [path]`,
 
       const assistantMessage = {
         role: "assistant",
-        content: response.data.text,
+        content: response.data.content,  // Changed from response.data.text
         type: response.data.type,
         question: response.data.question,
         items: response.data.items,
@@ -451,7 +451,7 @@ Long-term Development: [path]`,
 
         const assistantMessage = {
           role: "assistant",
-          content: response.data.text,
+          content: response.data.content,  // Changed from response.data.text
           type: response.data.type,
           question: response.data.question,
           items: response.data.items,
