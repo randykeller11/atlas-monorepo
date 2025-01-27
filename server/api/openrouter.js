@@ -20,7 +20,7 @@ class OpenRouterAPI {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify({
-          model: "openai/gpt-4",
+          model: "gpt-4o",
           messages: messages,
           response_format: { type: "json_object" }
         })
