@@ -212,7 +212,6 @@ function AppContent() {
     setInput("");
 
     try {
-      try {
         const response = await axios.post(
           `${API_URL}/api/message`,
           {
@@ -240,6 +239,7 @@ function AppContent() {
         
         // Check if we've reached max questions
         if (handleQuestionCount(response.data, input)) {
+          try {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
               {
@@ -452,7 +452,6 @@ Here's an example of a properly formatted response:
     setLoading(true);
 
     try {
-      try {
         // First check if this is the name response
         if (!hasHandledName) {
           setHasHandledName(true);
@@ -488,6 +487,7 @@ Here's an example of a properly formatted response:
       
         // Check if we've reached max questions
         if (handleQuestionCount(response.data, userMessage.content)) {
+          try {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
               {
