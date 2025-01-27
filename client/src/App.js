@@ -127,12 +127,12 @@ function AppContent() {
       });
       setShowResults(true);
       
-      // Request summary...
+      // Request summary with special flag
       try {
         const summaryResponse = await axios.post(
           `${API_URL}/api/message`,
           {
-            message: `Please provide a comprehensive summary of our conversation.`,
+            message: `[GENERATE_SUMMARY] Please provide a comprehensive summary of our conversation.`,
             conversation: conversationHistory
           },
           {
