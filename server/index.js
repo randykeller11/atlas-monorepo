@@ -1110,8 +1110,13 @@ app.post("/api/message", async (req, res) => {
         throw new Error('Invalid API response format');
       }
 
-      const response = JSON.parse(completion.choices[0].message.content);
-      res.json(response);
+      try {
+        const response = JSON.parse(completion.choices[0].message.content);
+        res.json(response);
+      } catch (parseError) {
+        console.error('Error parsing summary response:', parseError);
+        throw new Error('Invalid JSON in summary response');
+      }
       return;
     }
 
@@ -1130,24 +1135,27 @@ app.post("/api/message", async (req, res) => {
     }
 
     try {
-      const response = JSON.parse(completion.choices[0].message.content);
+      // Parse the response content as JSON
+      const parsedResponse = JSON.parse(completion.choices[0].message.content);
+      
+      // Log the parsed response for debugging
+      console.log('\n=== Parsed Response ===');
+      console.log(JSON.stringify(parsedResponse, null, 2));
       
       // Update conversation state based on response
-      updateConversationState(sessionId, response);
+      updateConversationState(sessionId, parsedResponse);
       
-      res.json(response);
-    } catch (error) {
-      console.error('Error parsing response:', error);
+      // Send the parsed response back to the client
+      res.json(parsedResponse);
+    } catch (parseError) {
+      console.error('Error parsing response:', parseError);
       console.error('Raw response:', completion.choices[0].message.content);
-      res.json({
-        type: "text",
-        content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
-      });
+      throw new Error('Invalid JSON in response');
     }
 
   } catch (error) {
     console.error('Error processing message:', error);
-    res.json({
+    res.status(500).json({
       type: "text",
       content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
     });
