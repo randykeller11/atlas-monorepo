@@ -1116,50 +1116,84 @@ const parseSummaryResponse = (text) => {
 
 app.post("/api/message", async (req, res) => {
   const sessionId = req.headers["session-id"];
-  const { message } = req.body;
+  const { message, conversation } = req.body;
   
-  console.log(
-    `\n[${new Date().toISOString()}] New message request from session ${sessionId}`
-  );
-
-  // Check if this is a summary request
-  if (message.includes('Please provide a comprehensive summary')) {
-    try {
-      // Get the threadId from the sessions map
-      const threadId = sessions.get(sessionId);
-      if (!threadId) {
-        throw new Error('No thread found for session');
-      }
-
-      // Create the message in the thread
-      await openai.beta.threads.messages.create(threadId, {
-        role: "user",
-        content: message,
+  console.log('\n=== Processing Message ===');
+  console.log('Message:', message);
+  
+  try {
+    // Check if this is a summary request
+    if (message.includes('Please provide a comprehensive summary')) {
+      const completion = await openai.chat.completions.create({
+        model: "openai/gpt-4",
+        messages: conversation,
+        response_format: { type: "json_object" },
+        system_prompt: `You are Atlas, a career guidance AI. Analyze the conversation and provide a structured summary in the following JSON format:
+        {
+          "summaryOfResponses": {
+            "interestExploration": "string",
+            "technicalAptitude": "string",
+            "workStyle": "string",
+            "careerValues": "string"
+          },
+          "careerMatches": [
+            {
+              "role": "string",
+              "match": number,
+              "explanation": "string"
+            }
+          ],
+          "salaryInformation": [
+            {
+              "role": "string",
+              "salary": "string"
+            }
+          ],
+          "educationPath": {
+            "courses": ["string"],
+            "certifications": ["string"]
+          },
+          "portfolioRecommendations": ["string"],
+          "networkingSuggestions": ["string"],
+          "careerRoadmap": {
+            "highSchool": "string",
+            "college": "string",
+            "earlyCareer": "string",
+            "longTerm": "string"
+          }
+        }`
       });
 
-      // Create and wait for the run to complete
-      const run = await openai.beta.threads.runs.create(threadId, {
-        assistant_id: assistantId,
-      });
-
-      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      while (runStatus.status !== "completed") {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      }
-
-      // Get the response
-      const messages = await openai.beta.threads.messages.list(threadId);
-      const response = messages.data[0].content[0].text.value;
-
-      const parsedSummary = parseSummaryResponse(response);
-      res.json(parsedSummary);
-      return;
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      res.status(500).json({ error: 'Failed to generate summary' });
+      res.json(JSON.parse(completion.choices[0].message.content));
       return;
     }
+
+    // Regular message handling
+    const completion = await openai.chat.completions.create({
+      model: "openai/gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "You are Atlas, a career guidance AI. Format your responses as JSON with the following structure for different types of responses:\n\nFor text responses:\n{\n  \"type\": \"text\",\n  \"content\": \"string\"\n}\n\nFor multiple choice:\n{\n  \"type\": \"multiple_choice\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"options\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ]\n}\n\nFor ranking:\n{\n  \"type\": \"ranking\",\n  \"content\": \"string\",\n  \"question\": \"string\",\n  \"items\": [\n    {\n      \"id\": \"string\",\n      \"text\": \"string\"\n    }\n  ],\n  \"totalRanks\": number\n}"
+        },
+        ...conversation,
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const response = JSON.parse(completion.choices[0].message.content);
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error processing message:', error);
+    res.json({
+      type: "text",
+      content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
+    });
   }
 
   // Set response timeout to avoid Heroku H12 error

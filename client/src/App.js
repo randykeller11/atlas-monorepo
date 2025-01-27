@@ -62,6 +62,12 @@ export const Dropdown = ({ isOpen }) => {
 function AppContent() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [userName, setUserName] = useState('');
+  const [conversationHistory, setConversationHistory] = useState([
+    {
+      role: "system",
+      content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
+    }
+  ]);
   const [conversation, setConversation] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -127,39 +133,8 @@ function AppContent() {
         const summaryResponse = await axios.post(
           `${API_URL}/api/message`,
           {
-            message: `Please provide a comprehensive summary of our conversation using exactly this format:
-
-**Summary of Responses:**
-- Interest Exploration: [key interests and findings]
-- Technical Aptitude: [technical skills and preferences]
-- Work Style: [work environment and collaboration preferences]
-- Career Values: [prioritized values and goals]
-
-**Career Matches:**
-- [Role Name] ([X]% match): [brief explanation]
-- [Role Name] ([X]% match): [brief explanation]
-
-**Salary Information:**
-- [Role Name]: [salary range]
-- [Role Name]: [salary range]
-
-**Education Path:**
-- Courses: [specific course names]
-- Certifications: [specific certification names]
-
-**Portfolio Recommendations:**
-- [specific project suggestion]
-- [specific project suggestion]
-
-**Networking Suggestions:**
-- [specific community or platform]
-- [specific community or platform]
-
-**Career Roadmap:**
-- High School: [specific steps]
-- College: [specific steps]
-- Early Career: [specific steps]
-- Long-term Development: [specific steps]`
+            message: `Please provide a comprehensive summary of our conversation.`,
+            conversation: conversationHistory
           },
           {
             headers: {
@@ -244,37 +219,42 @@ function AppContent() {
     return response;
   };
 
-  const sendMessage = async (message, retryCount = 0) => {
-    if (!input.trim()) return;
-    if (isProcessingResponse) return;
+  const sendMessage = async () => {
+    if (!input.trim() || isProcessingResponse) return;
     setIsProcessingResponse(true);
 
     const userMessage = {
       role: "user",
-      content: input,
+      content: input
     };
 
+    // Update UI immediately
     setConversation([...conversation, userMessage]);
     setLoading(true);
     setInput("");
 
+    // Update conversation history
+    const updatedHistory = [...conversationHistory, userMessage];
+    setConversationHistory(updatedHistory);
+
     try {
-        const response = await axios.post(
-          `${API_URL}/api/message`,
-          {
-            message: input,
+      const response = await axios.post(
+        `${API_URL}/api/message`,
+        {
+          message: input,
+          conversation: updatedHistory
+        },
+        {
+          headers: {
+            "session-id": sessionId,
           },
-          {
-            headers: {
-              "session-id": sessionId,
-            },
-            timeout: 25000,
-          }
-        );
+          timeout: 25000,
+        }
+      );
 
         const assistantMessage = {
           role: "assistant",
-          content: response.data.text,
+          content: response.data.content,
           type: response.data.type,
           question: response.data.question,
           items: response.data.items,
@@ -282,7 +262,15 @@ function AppContent() {
           options: response.data.options,
         };
 
-        setConversation((prev) => [...prev, assistantMessage]);
+        // Update UI
+        setConversation(prev => [...prev, assistantMessage]);
+        
+        // Update conversation history
+        setConversationHistory([...updatedHistory, {
+          role: "assistant",
+          content: response.data.content
+        }]);
+
         await incrementQuestionCount(response.data, input);
 
         // Remove results check - now handled in incrementQuestionCount
