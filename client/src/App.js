@@ -392,11 +392,11 @@ Here's an example of a properly formatted response:
   };
 
   const handleOptionSelect = async (e, messageIndex) => {
-    if (isProcessingResponse) return;
-    setIsProcessingResponse(true);
-
     const selectedOption = e.target.value;
     const question = conversation[messageIndex];
+
+    // Set processing state after validating the selection
+    setIsProcessingResponse(true);
 
     // Create user message
     const userMessage = {
@@ -405,35 +405,37 @@ Here's an example of a properly formatted response:
         question.options?.find((opt) => opt.id === selectedOption)?.text || selectedOption,
     };
 
-      setConversation((prev) => [...prev, userMessage]);
-      setLoading(true);
+    // Update conversation immediately
+    setConversation(prev => [...prev, userMessage]);
+    setLoading(true);
 
-      try {
-        const response = await axios.post(
-          `${API_URL}/api/message`,
-          {
-            message: userMessage.content,
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/message`,
+        {
+          message: userMessage.content,
+        },
+        {
+          headers: {
+            "session-id": sessionId,
           },
-          {
-            headers: {
-              "session-id": sessionId,
-            },
-          }
-        );
+        }
+      );
 
-        validateResponse(response.data);
+      validateResponse(response.data);
 
-        const assistantMessage = {
-          role: "assistant",
-          content: response.data.text,
-          type: response.data.type,
-          question: response.data.question,
-          items: response.data.items,
-          totalRanks: response.data.totalRanks,
-          options: response.data.options,
-        };
+      const assistantMessage = {
+        role: "assistant",
+        content: response.data.text,
+        type: response.data.type,
+        question: response.data.question,
+        items: response.data.items,
+        totalRanks: response.data.totalRanks,
+        options: response.data.options,
+      };
 
-        setConversation((prev) => [...prev, assistantMessage]);
+      // Update conversation with assistant's response
+      setConversation(prev => [...prev, assistantMessage]);
         
         // Increment counter if this should count as a question
         if (shouldCountAsQuestion(response.data)) {

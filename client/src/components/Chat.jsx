@@ -219,14 +219,15 @@ const styles = {
 
 const MultipleChoiceQuestion = ({ message, onSelect }) => {
   const [selectedOption, setSelectedOption] = useState(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSelect = (optionId) => {
     setSelectedOption(optionId);
+    setIsSubmitted(false);
   };
 
   const handleSubmit = () => {
-    if (selectedOption) {
-      // Find the selected option's text
+    if (selectedOption && !isSubmitted) {
       const selectedText = message.options.find(opt => opt.id === selectedOption)?.text;
       if (selectedText) {
         onSelect({
@@ -235,8 +236,7 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
             selectedText: selectedText
           }
         });
-        // Reset the selected option after submission
-        setSelectedOption(null);
+        setIsSubmitted(true);
       }
     }
   };
