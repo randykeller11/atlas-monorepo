@@ -525,17 +525,38 @@ const hybridSanitize = async (response, threadId) => {
     try {
       const mcMatch = response.match(/<mc>([\s\S]*?)<\/mc>/);
       if (mcMatch) {
-        const mcContent = JSON.parse(mcMatch[1]);
-        const conversationalText = response.split('<mc>')[0].trim();
-        return {
-          text: conversationalText,
-          type: "multiple_choice",
-          question: mcContent.question,
-          options: mcContent.options
-        };
+        try {
+          const mcContent = JSON.parse(mcMatch[1]);
+          const conversationalText = response.split('<mc>')[0].trim();
+          return {
+            text: conversationalText,
+            type: "multiple_choice",
+            question: mcContent.question,
+            options: mcContent.options
+          };
+        } catch (jsonError) {
+          console.warn("Failed to parse MC JSON:", jsonError);
+        }
+      }
+
+      const rankMatch = response.match(/<rank>([\s\S]*?)<\/rank>/);
+      if (rankMatch) {
+        try {
+          const rankContent = JSON.parse(rankMatch[1]);
+          const conversationalText = response.split('<rank>')[0].trim();
+          return {
+            text: conversationalText,
+            type: "ranking",
+            question: rankContent.question,
+            items: rankContent.items,
+            totalRanks: rankContent.totalRanks
+          };
+        } catch (jsonError) {
+          console.warn("Failed to parse rank JSON:", jsonError);
+        }
       }
     } catch (error) {
-      console.warn("Failed to parse explicit MC format:", error);
+      console.warn("Failed to parse explicit format:", error);
     }
   }
   

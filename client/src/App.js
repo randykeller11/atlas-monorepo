@@ -176,11 +176,13 @@ function AppContent() {
       };
 
       setConversation((prev) => [...prev, assistantMessage]);
-      
-      // Only increment question count for user messages
-      setQuestionCount((prev) => prev + 1);
+    
+      // Only increment for completed interactions (user message + assistant response)
+      if (response.data.type === 'multiple_choice' || response.data.type === 'ranking') {
+        setQuestionCount((prev) => prev + 1);
+      }
 
-      // Check if we've reached 5 questions after updating the count
+      // Check if we've reached max questions
       if (questionCount + 1 === 5) {
         try {
           const summaryResponse = await axios.post(
@@ -282,11 +284,11 @@ function AppContent() {
         };
 
         setConversation((prev) => [...prev, assistantMessage]);
-        
-        // Only increment question count for user messages
+      
+        // Increment question count after completing a question
         setQuestionCount((prev) => prev + 1);
 
-        // Check if we've reached 5 questions after updating the count
+        // Check if we've reached max questions
         if (questionCount + 1 === 5) {
           try {
             const summaryResponse = await axios.post(
