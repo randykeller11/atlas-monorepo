@@ -242,7 +242,7 @@ function AppContent() {
         setQuestionCount(newCount);
         console.log(`Question count increased to ${newCount}`);
 
-        // Only proceed with summary if we've completed the last question
+        // Only proceed with summary if we've completed the last question and it's not an interactive message
         if (newCount === maxQuestions && !response.data.type) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
@@ -428,10 +428,9 @@ Here's an example of a properly formatted response:
           const newCount = questionCount + 1;
           setQuestionCount(newCount);
           console.log(`Question count increased to ${newCount}`);
-        }
 
-        // Only proceed with summary if we've completed the last question
-        if (newCount === maxQuestions && !response.data.type) {
+          // Only proceed with summary if we've completed the last question and it's not an interactive message
+          if (newCount === maxQuestions && !response.data.type) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
