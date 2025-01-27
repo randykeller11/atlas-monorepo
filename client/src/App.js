@@ -79,10 +79,29 @@ function AppContent() {
   const menuRef = useRef(null);
   const location = useLocation();
 
+  // Add helper function to determine if a message should count as a question
+  const shouldCountAsQuestion = (message) => {
+    // Don't count greetings
+    if (message.text?.includes("Hi, I'm Atlas") || 
+        message.text?.includes("Hello") || 
+        message.text?.toLowerCase().includes("nice to meet you")) {
+      return false;
+    }
+    
+    // Don't count name-related responses
+    if (message.text?.toLowerCase().includes("what's your name") ||
+        message.text?.toLowerCase().includes("nice to meet you")) {
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
-    console.log('Question count updated:', questionCount);
+    console.log('Current question count:', questionCount);
+    console.log('Max questions:', maxQuestions);
     if (questionCount >= maxQuestions) {
-      console.log('Maximum questions reached, triggering summary');
+      console.log('Should show results now');
     }
   }, [questionCount, maxQuestions]);
 
@@ -185,12 +204,11 @@ function AppContent() {
 
       setConversation((prev) => [...prev, assistantMessage]);
       
-      // Only increment for non-greeting messages
-      if (!response.data.text.includes("Hi, I'm Atlas") && 
-          !response.data.text.includes("Hello") && 
-          !response.data.text.toLowerCase().includes("nice to meet you")) {
+      // Increment counter if this should count as a question
+      if (shouldCountAsQuestion(response.data)) {
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
+        console.log(`Question count increased to ${newCount}`);
 
         // Only proceed with summary if we've completed the last question
         if (newCount === maxQuestions && !response.data.type) {
@@ -373,9 +391,12 @@ Here's an example of a properly formatted response:
 
         setConversation((prev) => [...prev, assistantMessage]);
         
-        // Increment the counter after a successful response
-        const newCount = questionCount + 1;
-        setQuestionCount(newCount);
+        // Increment counter if this should count as a question
+        if (shouldCountAsQuestion(response.data)) {
+          const newCount = questionCount + 1;
+          setQuestionCount(newCount);
+          console.log(`Question count increased to ${newCount}`);
+        }
 
         // Only proceed with summary if we've completed the last question
         if (newCount === maxQuestions && !response.data.type) {
