@@ -1038,15 +1038,30 @@ const parseSummaryResponse = (text) => {
     const educationMatch = text.match(/\*\*Education Path:\*\*([\s\S]*?)(?=\*\*Portfolio)/);
     if (educationMatch) {
       const eduText = educationMatch[1];
-      sections.educationPath.courses = eduText.match(/Courses:([^]*?)(?=Certifications:|$)/s)?.[1]
-        .split('\n')
-        .filter(line => line.trim().startsWith('-'))
-        .map(course => course.replace('-', '').trim());
       
-      sections.educationPath.certifications = eduText.match(/Certifications:([^]*?)(?=\*\*|$)/s)?.[1]
-        .split('\n')
-        .filter(line => line.trim().startsWith('-'))
-        .map(cert => cert.replace('-', '').trim());
+      // Parse Courses
+      const coursesMatch = eduText.match(/(?:Courses:|-)([^]*?)(?=Certifications:|$)/s);
+      if (coursesMatch) {
+        sections.educationPath.courses = coursesMatch[1]
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.startsWith('-'))
+          .map(course => course.substring(1).trim());
+      }
+      
+      // Parse Certifications
+      const certsMatch = eduText.match(/(?:Certifications:|-)([^]*?)(?=\*\*|$)/s);
+      if (certsMatch) {
+        sections.educationPath.certifications = certsMatch[1]
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.startsWith('-'))
+          .map(cert => cert.substring(1).trim());
+      }
+
+      // Ensure arrays exist even if empty
+      sections.educationPath.courses = sections.educationPath.courses || [];
+      sections.educationPath.certifications = sections.educationPath.certifications || [];
     }
 
     // Parse Portfolio Recommendations
