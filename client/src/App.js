@@ -230,7 +230,41 @@ function AppContent() {
 - High School: [specific steps]
 - College: [specific steps]
 - Early Career: [specific steps]
-- Long-term Development: [specific steps]`
+- Long-term Development: [specific steps]
+
+Here's an example of a properly formatted response:
+
+**Summary of Responses:**
+- Interest Exploration: Strong interest in coding and AI projects, particularly enjoys problem-solving aspects
+- Technical Aptitude: Basic programming knowledge, strong analytical skills, eager to learn AI/ML
+- Work Style: Prefers independent work with flexible hours, comfortable with remote settings
+- Career Values: Prioritizes work-life balance, competitive salary, and continuous learning
+
+**Career Matches:**
+- Machine Learning Engineer (85% match): Aligns with interest in AI and programming, offers good work-life balance
+- Data Scientist (80% match): Matches analytical skills and interest in problem-solving
+
+**Salary Information:**
+- Machine Learning Engineer: $80,000 - $120,000 entry level
+- Data Scientist: $75,000 - $110,000 entry level
+
+**Education Path:**
+- Courses: CS50x from Harvard, Machine Learning by Stanford on Coursera
+- Certifications: AWS Machine Learning Specialty, Google TensorFlow Developer Certificate
+
+**Portfolio Recommendations:**
+- Build an AI-powered image classification web app
+- Create a predictive analytics dashboard for business metrics
+
+**Networking Suggestions:**
+- Join local Python/AI Meetup groups
+- Participate in Kaggle competitions and forums
+
+**Career Roadmap:**
+- High School: Take AP Computer Science, participate in coding clubs
+- College: Major in Computer Science with AI/ML focus
+- Early Career: Start as junior data scientist or ML engineer
+- Long-term Development: Lead AI projects, specialize in deep learning`
               },
               {
                 headers: {
@@ -346,7 +380,73 @@ function AppContent() {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
               {
-                message: "Please provide a comprehensive summary of our conversation including: 1. A summary of responses by section 2. 2-3 recommended tech roles with percentage matches and explanations 3. Entry-level salary ranges for suggested roles 4. Recommended courses and certifications 5. Portfolio building suggestions 6. Networking opportunities 7. A detailed high school to career roadmap for their suggested paths",
+                message: `Please provide a comprehensive summary of our conversation using exactly this format:
+
+**Summary of Responses:**
+- Interest Exploration: [key interests and findings]
+- Technical Aptitude: [technical skills and preferences]
+- Work Style: [work environment and collaboration preferences]
+- Career Values: [prioritized values and goals]
+
+**Career Matches:**
+- [Role Name] ([X]% match): [brief explanation]
+- [Role Name] ([X]% match): [brief explanation]
+
+**Salary Information:**
+- [Role Name]: [salary range]
+- [Role Name]: [salary range]
+
+**Education Path:**
+- Courses: [specific course names]
+- Certifications: [specific certification names]
+
+**Portfolio Recommendations:**
+- [specific project suggestion]
+- [specific project suggestion]
+
+**Networking Suggestions:**
+- [specific community or platform]
+- [specific community or platform]
+
+**Career Roadmap:**
+- High School: [specific steps]
+- College: [specific steps]
+- Early Career: [specific steps]
+- Long-term Development: [specific steps]
+
+Here's an example of a properly formatted response:
+
+**Summary of Responses:**
+- Interest Exploration: Strong interest in coding and AI projects, particularly enjoys problem-solving aspects
+- Technical Aptitude: Basic programming knowledge, strong analytical skills, eager to learn AI/ML
+- Work Style: Prefers independent work with flexible hours, comfortable with remote settings
+- Career Values: Prioritizes work-life balance, competitive salary, and continuous learning
+
+**Career Matches:**
+- Machine Learning Engineer (85% match): Aligns with interest in AI and programming, offers good work-life balance
+- Data Scientist (80% match): Matches analytical skills and interest in problem-solving
+
+**Salary Information:**
+- Machine Learning Engineer: $80,000 - $120,000 entry level
+- Data Scientist: $75,000 - $110,000 entry level
+
+**Education Path:**
+- Courses: CS50x from Harvard, Machine Learning by Stanford on Coursera
+- Certifications: AWS Machine Learning Specialty, Google TensorFlow Developer Certificate
+
+**Portfolio Recommendations:**
+- Build an AI-powered image classification web app
+- Create a predictive analytics dashboard for business metrics
+
+**Networking Suggestions:**
+- Join local Python/AI Meetup groups
+- Participate in Kaggle competitions and forums
+
+**Career Roadmap:**
+- High School: Take AP Computer Science, participate in coding clubs
+- College: Major in Computer Science with AI/ML focus
+- Early Career: Start as junior data scientist or ML engineer
+- Long-term Development: Lead AI projects, specialize in deep learning`,
               },
               {
                 headers: {
