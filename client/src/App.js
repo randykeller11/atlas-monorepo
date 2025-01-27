@@ -392,6 +392,12 @@ Here's an example of a properly formatted response:
         question.options?.find((opt) => opt.id === selectedOption)?.text || selectedOption,
     };
 
+    // Mark that we've handled the name response if we haven't yet
+    if (!hasHandledName) {
+      setHasHandledName(true);
+      console.log('Name response handled');
+    }
+
     // Update conversation immediately
     setConversation(prev => [...prev, userMessage]);
     setLoading(true);
