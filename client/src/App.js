@@ -68,6 +68,7 @@ function AppContent() {
     }
   ]);
   const [conversation, setConversation] = useState([]);
+  const [userName, setUserName] = useState('');
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
