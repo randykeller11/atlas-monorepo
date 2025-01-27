@@ -327,15 +327,49 @@ Here's an example of a properly formatted response:
     }
   };
 
-  const handleNameSubmit = (name) => {
+  const handleNameSubmit = async (name) => {
     setUserName(name);
     setShowWelcome(false);
-    setConversation([
-      {
+    setLoading(true);
+
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/message`,
+        {
+          message: name,
+        },
+        {
+          headers: {
+            "session-id": sessionId,
+          },
+        }
+      );
+
+      validateResponse(response.data);
+
+      const assistantMessage = {
         role: "assistant",
-        content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! Let's start exploring your interests and potential career paths.`,
-      }
-    ]);
+        content: response.data.text,
+        type: response.data.type,
+        question: response.data.question,
+        items: response.data.items,
+        totalRanks: response.data.totalRanks,
+        options: response.data.options,
+      };
+
+      setConversation([assistantMessage]);
+    } catch (error) {
+      console.error("Error:", error);
+      // Set a fallback message if the API call fails
+      setConversation([
+        {
+          role: "assistant",
+          content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
