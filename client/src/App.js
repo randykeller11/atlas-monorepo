@@ -285,8 +285,8 @@ function AppContent() {
 
         setConversation((prev) => [...prev, assistantMessage]);
       
-        // Increment question count after completing a question
-        setQuestionCount((prev) => prev + 1);
+        // Increment question count for completed interaction
+        setQuestionCount((prev) => Math.min(prev + 1, 5));
 
         // Check if we've reached max questions
         if (questionCount + 1 === 5) {
