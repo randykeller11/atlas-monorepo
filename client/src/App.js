@@ -326,18 +326,6 @@ Here's an example of a properly formatted response:
     }
   };
 
-  const resetAssessment = () => {
-    setQuestionCount(0);
-    setShowResults(false);
-    setAssessmentSummary(null);
-    setConversation([
-      {
-        role: "assistant",
-        content: "Hi, I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What's your name?",
-      },
-    ]);
-  };
-
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       sendMessage();
