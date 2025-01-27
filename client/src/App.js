@@ -192,8 +192,23 @@ function AppContent() {
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
 
-        // Check if we've reached max questions
-        if (newCount >= maxQuestions) {
+        // Only proceed with summary if this was the last question
+        if (newCount === maxQuestions) {
+          // Set initial null state for all summary sections
+          setAssessmentSummary({
+            summaryOfResponses: null,
+            careerMatches: null,
+            salaryInformation: null,
+            educationPath: null,
+            portfolioRecommendations: null,
+            networkingSuggestions: null,
+            careerRoadmap: null
+          });
+          
+          // Switch to results view
+          setShowResults(true);
+
+          // Now request the summary
           try {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
@@ -374,8 +389,23 @@ Here's an example of a properly formatted response:
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
 
-        // Check if we've reached max questions
-        if (newCount >= maxQuestions) {
+        // Only proceed with summary if this was the last question
+        if (newCount === maxQuestions) {
+          // Set initial null state for all summary sections
+          setAssessmentSummary({
+            summaryOfResponses: null,
+            careerMatches: null,
+            salaryInformation: null,
+            educationPath: null,
+            portfolioRecommendations: null,
+            networkingSuggestions: null,
+            careerRoadmap: null
+          });
+          
+          // Switch to results view
+          setShowResults(true);
+
+          // Now request the summary
           try {
             const summaryResponse = await axios.post(
               `${API_URL}/api/message`,
