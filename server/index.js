@@ -95,19 +95,33 @@ initializeAssistant();
 // Add helper functions for response parsing and formatting
 const isMultipleChoice = (text) => {
   const choiceIndicators = [
+    // Question patterns
     /(?:select|choose|pick)\s+(?:one|an option)/i,
-    /which\s+(?:of the following|option)/i,
-    /would you prefer/i,
-    /which\s+(?:best describes|approach|method)/i,
+    /which\s+(?:of the following|option|best describes|approach|method)/i,
+    /would you (?:prefer|like|rather)/i,
     /how would you/i,
-    /\b(?:A|B|C|D)\)[\s\w]/i
+    /what (?:would|do) you/i,
+    /what'?s your/i,
+    
+    // Format patterns
+    /\b(?:A|B|C|D)\)[\s\w]/i,
+    /\b(?:option|choice)\s*(?:[A-D]|\d+):/i,
+    /(?:\d+\.|\([A-D]\)|\b[A-D]\))\s+\w+/i,
+    
+    // List indicators
+    /(?:•|-|\*)\s+[\w\s]+(?:\n|$)/,
+    /(?:\d+\.)\s+[\w\s]+(?:\n|$)/
   ];
 
-  return (
-    text.includes('?') && 
-    (choiceIndicators.some(pattern => pattern.test(text)) ||
-     /(?:[A-D]\)|\d+\.)[\s\w]/.test(text))
-  );
+  // Check for question mark and any of the indicators
+  const hasQuestion = text.includes('?');
+  const hasIndicators = choiceIndicators.some(pattern => pattern.test(text));
+  
+  // Also check for list-like structure with multiple items
+  const listItems = text.match(/(?:^|\n)(?:•|-|\*|\d+\.|[A-D]\))\s+.+/gm);
+  const hasMultipleListItems = listItems && listItems.length >= 2;
+
+  return hasQuestion && (hasIndicators || hasMultipleListItems);
 };
 
 const detectQuestionType = (text) => {
