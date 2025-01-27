@@ -176,10 +176,12 @@ function AppContent() {
       };
 
       setConversation((prev) => [...prev, assistantMessage]);
-    
-      // Only increment for completed interactions (user message + assistant response)
-      if (response.data.type === 'multiple_choice' || response.data.type === 'ranking') {
-        setQuestionCount((prev) => prev + 1);
+      
+      // Increment question count for any completed interaction that isn't the initial greeting
+      if (!response.data.text.includes("Hi, I'm Atlas") && 
+          !response.data.text.includes("Hello") && 
+          !response.data.text.toLowerCase().includes("nice to meet you")) {
+        setQuestionCount((prev) => Math.min(prev + 1, 5));
       }
 
       // Check if we've reached max questions
