@@ -232,9 +232,11 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
         onSelect({
           target: {
             value: selectedOption,
-            selectedText: selectedText // Pass the selected text
+            selectedText: selectedText
           }
         });
+        // Reset the selected option after submission
+        setSelectedOption(null);
       }
     }
   };
@@ -258,7 +260,11 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
         ))}
       </div>
       <button
-        style={styles.submitRanking}
+        style={{
+          ...styles.submitRanking,
+          opacity: selectedOption ? 1 : 0.5,
+          cursor: selectedOption ? 'pointer' : 'not-allowed'
+        }}
         onClick={handleSubmit}
         disabled={!selectedOption}
       >
