@@ -81,10 +81,18 @@ function AppContent() {
 
   // Add helper function to determine if a message should count as a question
   const shouldCountAsQuestion = (message) => {
-    // Don't count greetings or initial messages
-    if (!message || !message.text) return false;
+    // Add debug logging
+    console.log('Checking message:', message);
     
-    const text = message.text.toLowerCase();
+    // Don't count if message is null or doesn't have required properties
+    if (!message || (!message.text && !message.content)) {
+      console.log('Message invalid, not counting');
+      return false;
+    }
+    
+    // Get the text from either text or content property
+    const text = (message.text || message.content).toLowerCase();
+    console.log('Message text:', text);
     
     // List of phrases that indicate non-question messages
     const excludePhrases = [
@@ -96,22 +104,33 @@ function AppContent() {
       "thanks for sharing",
       "thank you",
       "i understand",
-      "that's interesting"
+      "that's interesting",
+      "i apologize",
+      "sorry"
     ];
 
     // Check if the message contains any exclude phrases
     if (excludePhrases.some(phrase => text.includes(phrase.toLowerCase()))) {
+      console.log('Message contains exclude phrase, not counting');
       return false;
     }
 
-    // Only count messages that are actual questions
-    return (
-      (message.type === 'multiple_choice' || 
-       message.type === 'ranking' || 
-       text.includes('?')) &&
-      !text.startsWith('i apologize') &&
-      !text.startsWith('sorry')
-    );
+    // Count if it's a multiple choice or ranking question
+    if (message.type === 'multiple_choice' || message.type === 'ranking') {
+      console.log('Message is multiple choice or ranking, counting');
+      return true;
+    }
+
+    // Count if it contains a question mark and isn't an error message
+    if (text.includes('?') && 
+        !text.startsWith('i apologize') && 
+        !text.startsWith('sorry')) {
+      console.log('Message contains question mark and is not an error, counting');
+      return true;
+    }
+
+    console.log('Message does not meet counting criteria');
+    return false;
   };
 
   useEffect(() => {
