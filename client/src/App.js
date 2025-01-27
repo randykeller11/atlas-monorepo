@@ -81,28 +81,41 @@ function AppContent() {
 
   // Add helper function to determine if a message should count as a question
   const shouldCountAsQuestion = (message) => {
-    // Don't count greetings
-    if (message.text?.includes("Hi, I'm Atlas") || 
-        message.text?.includes("Hello") || 
-        message.text?.toLowerCase().includes("nice to meet you")) {
-      return false;
-    }
+    // Don't count greetings or initial messages
+    if (!message || !message.text) return false;
     
-    // Don't count name-related responses
-    if (message.text?.toLowerCase().includes("what's your name") ||
-        message.text?.toLowerCase().includes("nice to meet you")) {
+    const text = message.text.toLowerCase();
+    
+    // List of phrases that indicate non-question messages
+    const excludePhrases = [
+      "hi, i'm atlas",
+      "hello",
+      "nice to meet you",
+      "what's your name",
+      "great to meet you",
+      "thanks for sharing",
+      "thank you",
+      "i understand",
+      "that's interesting"
+    ];
+
+    // Check if the message contains any exclude phrases
+    if (excludePhrases.some(phrase => text.includes(phrase.toLowerCase()))) {
       return false;
     }
 
-    return true;
+    // Only count messages that are actual questions
+    return (
+      (message.type === 'multiple_choice' || 
+       message.type === 'ranking' || 
+       text.includes('?')) &&
+      !text.startsWith('i apologize') &&
+      !text.startsWith('sorry')
+    );
   };
 
   useEffect(() => {
-    console.log('Current question count:', questionCount);
-    console.log('Max questions:', maxQuestions);
-    if (questionCount >= maxQuestions) {
-      console.log('Should show results now');
-    }
+    console.log(`Question count updated: ${questionCount} / ${maxQuestions}`);
   }, [questionCount, maxQuestions]);
 
   useEffect(() => {
