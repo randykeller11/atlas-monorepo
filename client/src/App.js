@@ -451,7 +451,7 @@ Long-term Development: [path]`,
 
         const assistantMessage = {
           role: "assistant",
-          content: response.data.content,  // Changed from response.data.text
+          content: response.data.content,
           type: response.data.type,
           question: response.data.question,
           items: response.data.items,
