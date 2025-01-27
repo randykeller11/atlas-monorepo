@@ -6,7 +6,7 @@ const { formatting } = require("./formatting");
 require("dotenv").config();
 
 const api = new OpenRouterAPI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENROUTER_API_KEY,
   headers: {
     referer: process.env.APP_URL || "http://localhost:3000",
     title: "Atlas Career Coach"
@@ -54,51 +54,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client/build")));
 
 // Initialize OpenAI API
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Global variables for assistant and thread
-let assistantId = null;
-
-// Add a Map to store assistant IDs for different environments
-const assistants = new Map();
-
-// Add session management
-const sessions = new Map();
-
-// Initialize Assistant and Thread
-async function initializeAssistant() {
-  try {
-    // Force reload both modules to get the latest version
-    delete require.cache[require.resolve("./instructions")];
-    delete require.cache[require.resolve("./formatting")];
-    const { instructions } = require("./instructions");
-    const { formatting } = require("./formatting");
-
-    // Combine instructions with formatting
-    const combinedInstructions = instructions + formatting;
-    console.log(
-      "Initializing assistant with instructions:",
-      combinedInstructions
-    );
-
-    // Create an Assistant
-    const assistant = await openai.beta.assistants.create({
-      name: "Atlas Career Coach",
-      instructions: combinedInstructions,
-      tools: [{ type: "code_interpreter" }],
-      model: "gpt-4o-mini",
-    });
-
-    assistantId = assistant.id;
-    console.log("Assistant created with ID:", assistantId);
-  } catch (error) {
-    console.error("Error initializing assistant:", error);
-  }
-}
-
-initializeAssistant();
 
 // Add helper functions for response parsing and formatting
 const isMultipleChoice = (text) => {
@@ -1123,59 +1078,12 @@ const parseSummaryResponse = (text) => {
 };
 
 app.post("/api/message", async (req, res) => {
-  const sessionId = req.headers["session-id"];
   const { message, conversation } = req.body;
   
   console.log('\n=== Processing Message ===');
   console.log('Message:', message);
   
   try {
-    // Check if this is a summary request
-    if (message.includes('Please provide a comprehensive summary')) {
-      const completion = await openai.chat.completions.create({
-        model: "openai/gpt-4",
-        messages: conversation,
-        response_format: { type: "json_object" },
-        system_prompt: `You are Atlas, a career guidance AI. Analyze the conversation and provide a structured summary in the following JSON format:
-        {
-          "summaryOfResponses": {
-            "interestExploration": "string",
-            "technicalAptitude": "string",
-            "workStyle": "string",
-            "careerValues": "string"
-          },
-          "careerMatches": [
-            {
-              "role": "string",
-              "match": number,
-              "explanation": "string"
-            }
-          ],
-          "salaryInformation": [
-            {
-              "role": "string",
-              "salary": "string"
-            }
-          ],
-          "educationPath": {
-            "courses": ["string"],
-            "certifications": ["string"]
-          },
-          "portfolioRecommendations": ["string"],
-          "networkingSuggestions": ["string"],
-          "careerRoadmap": {
-            "highSchool": "string",
-            "college": "string",
-            "earlyCareer": "string",
-            "longTerm": "string"
-          }
-        }`
-      });
-
-      res.json(JSON.parse(completion.choices[0].message.content));
-      return;
-    }
-
     // Regular message handling
     const completion = await api.getChatCompletion([
       {
@@ -1389,23 +1297,6 @@ app.post("/api/message", async (req, res) => {
   }
 });
 
-// Add a function to cleanup existing sessions
-const cleanupSessions = async () => {
-  try {
-    for (const [sessionId, threadId] of sessions) {
-      try {
-        await openai.beta.threads.del(threadId);
-        console.log(`Cleaned up thread ${threadId} for session ${sessionId}`);
-      } catch (error) {
-        console.error(`Error cleaning up thread ${threadId}:`, error);
-      }
-    }
-    sessions.clear();
-    console.log("Cleared all active sessions");
-  } catch (error) {
-    console.error("Error in cleanup:", error);
-  }
-};
 
 // Update the /api/update-instructions endpoint
 app.post("/api/update-instructions", async (req, res) => {
