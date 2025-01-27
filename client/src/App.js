@@ -78,24 +78,37 @@ function AppContent() {
   const location = useLocation();
 
   const handleQuestionCount = (responseData, messageContent) => {
+    // Create a unique identifier for this response
     const responseId = `${messageContent}-${Date.now()}`;
     
+    console.log('\n=== Question Count Check ===');
+    console.log('Current count:', questionCount);
+    console.log('Has handled name:', hasHandledName);
+    console.log('Response type:', responseData.type);
+    console.log('Response ID:', responseId);
+    console.log('Last counted response:', lastCountedResponse);
+    
+    // Only count if:
+    // 1. We've handled the name
+    // 2. It's a valid response type
+    // 3. It's not a duplicate response
+    // 4. We haven't reached max questions yet
     if (hasHandledName && 
         (responseData.type === 'multiple_choice' || 
          responseData.type === 'ranking' ||
          responseData.type === 'text') &&
-        responseId !== lastCountedResponse) {
+        responseId !== lastCountedResponse &&
+        questionCount < maxQuestions) {
       
       const newCount = questionCount + 1;
-      console.log('\n=== Question Count Update ===');
-      console.log('Response type:', responseData.type);
+      console.log('\n=== Updating Question Count ===');
       console.log('Previous count:', questionCount);
       console.log('New count:', newCount);
-      console.log('Response ID:', responseId);
       
       setQuestionCount(newCount);
       setLastCountedResponse(responseId);
       
+      // Only show results if we've reached exactly maxQuestions
       if (newCount === maxQuestions) {
         console.log('Reached max questions, preparing results...');
         setAssessmentSummary({
