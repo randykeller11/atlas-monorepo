@@ -520,6 +520,19 @@ const hybridSanitize = async (response, threadId) => {
   console.log("\n=== Starting Response Sanitization ===");
   console.log("Original response:", response);
 
+  // Quick return for simple text responses
+  if (!response.includes('?') || 
+      response.startsWith('Hi') || 
+      response.startsWith('Hello') ||
+      response.startsWith('That') ||
+      response.startsWith('Thank')) {
+    console.log("Detected simple text response, skipping formatting");
+    return {
+      text: response,
+      type: "text"
+    };
+  }
+
   // First check for explicit MC/rank tags
   if (response.includes('<mc>') || response.includes('<rank>')) {
     try {
