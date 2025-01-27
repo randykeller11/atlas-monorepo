@@ -248,24 +248,24 @@ const Results = ({ summary }) => {
 
       {renderSection("Summary of Responses", (
         <div>
-          <p><strong>Interest Exploration:</strong> {summary.summaryOfResponses?.interestExploration}</p>
-          <p><strong>Technical Aptitude:</strong> {summary.summaryOfResponses?.technicalAptitude}</p>
-          <p><strong>Work Style:</strong> {summary.summaryOfResponses?.workStyle}</p>
-          <p><strong>Career Values:</strong> {summary.summaryOfResponses?.careerValues}</p>
+          <p><strong>Interest Exploration:</strong> {summary.Summary_of_Responses?.["Interest Exploration"]}</p>
+          <p><strong>Technical Aptitude:</strong> {summary.Summary_of_Responses?.["Technical Aptitude"]}</p>
+          <p><strong>Work Style:</strong> {summary.Summary_of_Responses?.["Work Style"]}</p>
+          <p><strong>Career Values:</strong> {summary.Summary_of_Responses?.["Career Values"]}</p>
         </div>
-      ), 'summaryOfResponses')}
+      ), 'Summary_of_Responses')}
 
       {renderSection("Career Matches", (
         <div>
-          {summary.careerMatches?.map((match, index) => (
+          {summary.Career_Matches?.map((match, index) => (
             <div key={index} style={styles.careerMatch}>
               <div style={styles.matchHeader}>
-                <span style={styles.matchPercentage}>{match.match}%</span>
+                <span style={styles.matchPercentage}>{match.percentage || match.match}%</span>
                 <div style={styles.progressBarContainer}>
                   <div 
                     style={{
                       ...styles.progressBarFill,
-                      width: `${match.match}%`
+                      width: `${match.percentage || match.match}%`
                     }}
                   />
                 </div>
@@ -275,82 +275,72 @@ const Results = ({ summary }) => {
             </div>
           ))}
         </div>
-      ), 'careerMatches')}
+      ), 'Career_Matches')}
 
       {renderSection("Salary Information", (
         <div>
-          {summary.salaryInformation?.map((range, index) => (
+          {summary.Salary_Information?.map((range, index) => (
             <div key={index}>
               <h3>{range.role}</h3>
-              <p>{range.salary}</p>
+              <p>{range.salary || range.range}</p>
             </div>
           ))}
         </div>
-      ), 'salaryInformation')}
+      ), 'Salary_Information')}
 
       {renderSection("Education Path", (
         <div>
           <div style={styles.educationSection}>
             <h3>Recommended Courses</h3>
             <ul style={styles.educationList}>
-              {Array.isArray(summary.educationPath?.courses) && summary.educationPath.courses.map((course, index) => (
+              {Array.isArray(summary.Education_Path?.Courses) && summary.Education_Path.Courses.map((course, index) => (
                 <li key={index} style={styles.educationItem}>
                   {course}
                 </li>
               ))}
-              {(!Array.isArray(summary.educationPath?.courses) || summary.educationPath?.courses.length === 0) && (
-                <li style={styles.educationItem}>
-                  No specific courses recommended at this time.
-                </li>
-              )}
             </ul>
           </div>
           <div style={styles.educationSection}>
             <h3>Certifications</h3>
             <ul style={styles.educationList}>
-              {Array.isArray(summary.educationPath?.certifications) && summary.educationPath.certifications.map((cert, index) => (
+              {Array.isArray(summary.Education_Path?.Certifications) && summary.Education_Path.Certifications.map((cert, index) => (
                 <li key={index} style={styles.educationItem}>
                   {cert}
                 </li>
               ))}
-              {(!Array.isArray(summary.educationPath?.certifications) || summary.educationPath?.certifications.length === 0) && (
-                <li style={styles.educationItem}>
-                  No specific certifications recommended at this time.
-                </li>
-              )}
             </ul>
           </div>
         </div>
-      ), 'educationPath')}
+      ), 'Education_Path')}
 
       {renderSection("Portfolio Recommendations", (
         <ul>
-          {summary.portfolioRecommendations?.map((suggestion, index) => (
+          {summary.Portfolio_Recommendations?.map((suggestion, index) => (
             <li key={index}>{suggestion}</li>
           ))}
         </ul>
-      ), 'portfolioRecommendations')}
+      ), 'Portfolio_Recommendations')}
 
       {renderSection("Networking Suggestions", (
         <ul>
-          {summary.networkingSuggestions?.map((suggestion, index) => (
+          {summary.Networking_Suggestions?.map((suggestion, index) => (
             <li key={index}>{suggestion}</li>
           ))}
         </ul>
-      ), 'networkingSuggestions')}
+      ), 'Networking_Suggestions')}
 
       {renderSection("Career Roadmap", (
         <div>
           <h3>High School</h3>
-          <p>{summary.careerRoadmap?.highSchool}</p>
+          <p>{summary.Career_Roadmap?.["High School"]}</p>
           <h3>College</h3>
-          <p>{summary.careerRoadmap?.college}</p>
+          <p>{summary.Career_Roadmap?.College}</p>
           <h3>Early Career</h3>
-          <p>{summary.careerRoadmap?.earlyCareer}</p>
+          <p>{summary.Career_Roadmap?.["Early Career"]}</p>
           <h3>Long-term Development</h3>
-          <p>{summary.careerRoadmap?.longTerm}</p>
+          <p>{summary.Career_Roadmap?.["Long-term Development"]}</p>
         </div>
-      ), 'careerRoadmap')}
+      ), 'Career_Roadmap')}
 
       <style>
         {`
