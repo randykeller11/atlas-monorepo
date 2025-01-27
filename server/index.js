@@ -24,7 +24,12 @@ const getConversationState = (sessionId) => {
         technicalAptitude: 0,
         careerValues: 0
       },
-      currentSectionQuestions: 0
+      currentSectionQuestions: 0,
+      questionTypes: {
+        multiple_choice: 0,
+        text: 0,
+        ranking: 0
+      }
     });
   }
   return conversationStates.get(sessionId);
@@ -36,6 +41,7 @@ const updateConversationState = (sessionId, response) => {
   if (response.type && ['multiple_choice', 'ranking', 'text'].includes(response.type)) {
     state.questionsAsked++;
     state.currentSectionQuestions++;
+    state.questionTypes[response.type]++;
   }
 
   if (state.currentSection === 'introduction' && state.questionsAsked === 1) {
@@ -1090,7 +1096,17 @@ app.post("/api/message", async (req, res) => {
                 Technical Aptitude (${state.sectionsCompleted.technicalAptitude}/2), 
                 Career Values (${state.sectionsCompleted.careerValues}/3).
                 
-                IMPORTANT: You MUST ask a question in every response using one of these formats:
+                IMPORTANT: You MUST ask questions following this exact distribution:
+                - 6 multiple choice questions
+                - 2 text (open-ended) questions
+                - 2 ranking questions
+
+                Questions remaining:
+                - Multiple choice: ${6 - (state.questionTypes?.multiple_choice || 0)}
+                - Text: ${2 - (state.questionTypes?.text || 0)}
+                - Ranking: ${2 - (state.questionTypes?.ranking || 0)}
+
+                Use this format for responses:
 
                 1. For open-ended questions, respond with JSON:
                 {
