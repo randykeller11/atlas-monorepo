@@ -328,14 +328,17 @@ const smartSanitize = (response) => {
         /which\s+(?:of the following|option)/i,
         /would you prefer/i,
         /which\s+(?:best describes|approach|method)/i,
-        /how would you/i,  // Add pattern for "how would you" questions
-        /\b(?:A|B|C|D)\)[\s\w]/i  // Add pattern for A) B) C) D) format
+        /how would you/i,
+        /what (?:would|do) you/i,
+        /\b(?:A|B|C|D)\)[\s\w]/i,
+        /\b(?:option|choice)\s*(?:[A-D]|\d+):/i,
+        /(?:\d+\.|\([A-D]\)|\b[A-D]\))\s+\w+/i
       ];
 
       return (
         text.includes('?') && 
         (choiceIndicators.some(pattern => pattern.test(text)) ||
-         /(?:[A-D]\)|\d+\.)[\s\w]/.test(text))  // Add pattern for lettered/numbered options
+         /(?:[A-D]\)|\d+\.|•|-)\s+\w+/.test(text))
       );
     };
 
@@ -457,8 +460,12 @@ const hybridSanitize = async (response, threadId) => {
         question: question,
         options: options
       };
-      console.log("Successfully sanitized multiple choice response:", sanitized);
-      return sanitized;
+
+      // Validate the response before returning
+      if (validateMultipleChoiceResponse(sanitized)) {
+        console.log("Successfully sanitized multiple choice response:", sanitized);
+        return sanitized;
+      }
     }
   }
 
@@ -706,21 +713,22 @@ const validateRankingResponse = (response) => {
 };
 
 const validateMultipleChoiceResponse = (response) => {
-  if (
-    !response.options ||
-    !Array.isArray(response.options) ||
-    response.options.length < 1
-  ) {
-    throw new Error("Invalid multiple choice response structure");
+  if (!response.options || !Array.isArray(response.options)) {
+    return false;
   }
 
-  // Ensure all options have required properties
-  response.options.forEach((option, index) => {
-    if (!option.id || !option.text) {
-      option.id = `option${index + 1}`;
-      option.text = option.text || `Option ${index + 1}`;
-    }
-  });
+  // Ensure we have at least 2 options and no more than 4
+  if (response.options.length < 2 || response.options.length > 4) {
+    return false;
+  }
+
+  // Validate each option has required properties and non-empty text
+  return response.options.every(opt => 
+    opt.id && 
+    opt.text && 
+    typeof opt.text === 'string' && 
+    opt.text.trim().length > 0
+  );
 };
 
 const convertToRankingFormat = (text) => {
