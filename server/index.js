@@ -80,7 +80,7 @@ async function initializeAssistant() {
       name: "Atlas Career Coach",
       instructions: combinedInstructions,
       tools: [{ type: "code_interpreter" }],
-      model: "gpt-4",
+      model: "gpt-4o-mini",
     });
 
     assistantId = assistant.id;
