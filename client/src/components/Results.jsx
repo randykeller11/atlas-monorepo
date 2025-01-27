@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import html2pdf from 'html2pdf.js';
 
 const styles = {
   container: {
@@ -71,10 +72,60 @@ const styles = {
   sectionContent: {
     opacity: 1,
     transition: 'opacity 0.3s ease-in'
+  },
+  downloadButton: {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    padding: '12px 24px',
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '30px',
+    cursor: 'pointer',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '16px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      backgroundColor: '#45a049',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+    }
+  },
+  resultsContent: {
+    marginBottom: '60px'
   }
 };
 
 const Results = ({ summary }) => {
+  const resultsRef = useRef(null);
+
+  const handleDownload = () => {
+    const element = resultsRef.current;
+    const opt = {
+      margin: 1,
+      filename: 'career-assessment-results.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // Remove the download button temporarily for PDF generation
+    const downloadButton = element.querySelector('#downloadButton');
+    if (downloadButton) {
+      downloadButton.style.display = 'none';
+    }
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      // Restore the download button after PDF generation
+      if (downloadButton) {
+        downloadButton.style.display = 'flex';
+      }
+    });
+  };
   if (!summary) return null;
 
   const LoadingPlaceholder = () => (
@@ -101,7 +152,8 @@ const Results = ({ summary }) => {
   );
 
   return (
-    <div style={styles.container}>
+    <div ref={resultsRef} style={styles.container}>
+      <div style={styles.resultsContent}>
       <div style={styles.header}>
         <h1>Your Career Assessment Results</h1>
       </div>
@@ -200,6 +252,29 @@ const Results = ({ summary }) => {
           }
         `}
       </style>
+      </div>
+
+      <button 
+        id="downloadButton"
+        onClick={handleDownload} 
+        style={styles.downloadButton}
+      >
+        <svg 
+          width="20" 
+          height="20" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Download PDF
+      </button>
     </div>
   );
 };
