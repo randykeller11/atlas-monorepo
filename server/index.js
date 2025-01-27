@@ -519,8 +519,35 @@ const createFormattedPrompt = (originalResponse) => {
 const hybridSanitize = async (response, threadId) => {
   console.log("\n=== Starting Response Sanitization ===");
   console.log("Original response:", response);
+
+  // First check for explicit MC/rank tags
+  if (response.includes('<mc>') || response.includes('<rank>')) {
+    try {
+      const mcMatch = response.match(/<mc>([\s\S]*?)<\/mc>/);
+      if (mcMatch) {
+        const mcContent = JSON.parse(mcMatch[1]);
+        const conversationalText = response.split('<mc>')[0].trim();
+        return {
+          text: conversationalText,
+          type: "multiple_choice",
+          question: mcContent.question,
+          options: mcContent.options
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to parse explicit MC format:", error);
+    }
+  }
   
-  // First try direct sanitization
+  // Check if this is just a regular conversational response
+  if (!response.includes('?') || response.startsWith('Hi') || response.startsWith('Hello')) {
+    return {
+      text: response,
+      type: "text"
+    };
+  }
+
+  // Try to detect and parse multiple choice format
   if (isMultipleChoice(response)) {
     const options = extractOptions(response);
     const question = extractQuestion(response);
@@ -542,18 +569,7 @@ const hybridSanitize = async (response, threadId) => {
     }
   }
 
-  // Check if this is just a regular conversational response
-  if (!response.includes('?') || response.startsWith('Hi') || response.startsWith('Hello')) {
-    return {
-      text: response,
-      type: "text"
-    };
-  }
-
-  // Only proceed with retries if really necessary
-  let retryCount = 0;
-  const maxRetries = 1;
-  
+  // If we get here, try to improve the format through the API
   const potentiallyInteractive = (
     response.includes('?') && 
     /\b(?:select|choose|pick|rank|order|prioritize|how|what|which)\b/i.test(response)
@@ -583,20 +599,33 @@ const hybridSanitize = async (response, threadId) => {
       const newResponse = messages.data[0].content[0].text.value;
       
       // Try sanitizing the new response
+      if (newResponse.includes('<mc>')) {
+        const mcMatch = newResponse.match(/<mc>([\s\S]*?)<\/mc>/);
+        if (mcMatch) {
+          const mcContent = JSON.parse(mcMatch[1]);
+          const conversationalText = newResponse.split('<mc>')[0].trim();
+          return {
+            text: conversationalText,
+            type: "multiple_choice",
+            question: mcContent.question,
+            options: mcContent.options
+          };
+        }
+      }
+
+      // If still no explicit format, try parsing as regular multiple choice
       if (isMultipleChoice(newResponse)) {
         const options = extractOptions(newResponse);
         const question = extractQuestion(newResponse);
         
         if (options && question) {
           const conversationalText = newResponse.split(question)[0].trim();
-          const sanitized = {
+          return {
             text: conversationalText,
             type: "multiple_choice",
             question: question,
             options: options
           };
-          console.log("Successfully sanitized after format improvement:", sanitized);
-          return sanitized;
         }
       }
     } catch (error) {
