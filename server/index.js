@@ -1039,29 +1039,51 @@ const parseSummaryResponse = (text) => {
     if (educationMatch) {
       const eduText = educationMatch[1];
       
+      // Initialize arrays
+      sections.educationPath = {
+        courses: [],
+        certifications: []
+      };
+
+      // Split the text into courses and certifications sections
+      const parts = eduText.split(/Certifications:/);
+      
       // Parse Courses
-      const coursesMatch = eduText.match(/(?:Courses:|-)([^]*?)(?=Certifications:|$)/s);
-      if (coursesMatch) {
-        sections.educationPath.courses = coursesMatch[1]
+      if (parts[0].includes('Courses:')) {
+        const coursesText = parts[0].split('Courses:')[1];
+        sections.educationPath.courses = coursesText
           .split('\n')
           .map(line => line.trim())
           .filter(line => line.startsWith('-'))
-          .map(course => course.substring(1).trim());
+          .map(line => line.substring(1).trim())
+          .filter(Boolean);
       }
       
       // Parse Certifications
-      const certsMatch = eduText.match(/(?:Certifications:|-)([^]*?)(?=\*\*|$)/s);
-      if (certsMatch) {
-        sections.educationPath.certifications = certsMatch[1]
+      if (parts[1]) {
+        sections.educationPath.certifications = parts[1]
           .split('\n')
           .map(line => line.trim())
           .filter(line => line.startsWith('-'))
-          .map(cert => cert.substring(1).trim());
+          .map(line => line.substring(1).trim())
+          .filter(Boolean);
       }
 
-      // Ensure arrays exist even if empty
-      sections.educationPath.courses = sections.educationPath.courses || [];
-      sections.educationPath.certifications = sections.educationPath.certifications || [];
+      // Additional validation and cleanup
+      if (!Array.isArray(sections.educationPath.courses)) {
+        sections.educationPath.courses = [];
+      }
+      if (!Array.isArray(sections.educationPath.certifications)) {
+        sections.educationPath.certifications = [];
+      }
+
+      // Remove any empty or invalid entries
+      sections.educationPath.courses = sections.educationPath.courses.filter(course => 
+        course && typeof course === 'string' && course.length > 0
+      );
+      sections.educationPath.certifications = sections.educationPath.certifications.filter(cert => 
+        cert && typeof cert === 'string' && cert.length > 0
+      );
     }
 
     // Parse Portfolio Recommendations
