@@ -286,36 +286,6 @@ function AppContent() {
         if (questionCount >= maxQuestions - 1) {
           setShowResults(true);
         }
-- Interest Exploration: Strong interest in coding and AI projects, particularly enjoys problem-solving aspects
-- Technical Aptitude: Basic programming knowledge, strong analytical skills, eager to learn AI/ML
-- Work Style: Prefers independent work with flexible hours, comfortable with remote settings
-- Career Values: Prioritizes work-life balance, competitive salary, and continuous learning
-
-**Career Matches:**
-- Machine Learning Engineer (85% match): Aligns with interest in AI and programming, offers good work-life balance
-- Data Scientist (80% match): Matches analytical skills and interest in problem-solving
-
-**Salary Information:**
-- Machine Learning Engineer: $80,000 - $120,000 entry level
-- Data Scientist: $75,000 - $110,000 entry level
-
-**Education Path:**
-- Courses: CS50x from Harvard, Machine Learning by Stanford on Coursera
-- Certifications: AWS Machine Learning Specialty, Google TensorFlow Developer Certificate
-
-**Portfolio Recommendations:**
-- Build an AI-powered image classification web app
-- Create a predictive analytics dashboard for business metrics
-
-**Networking Suggestions:**
-- Join local Python/AI Meetup groups
-- Participate in Kaggle competitions and forums
-
-**Career Roadmap:**
-- High School: Take AP Computer Science, participate in coding clubs
-- College: Major in Computer Science with AI/ML focus
-- Early Career: Start as junior data scientist or ML engineer
-- Long-term Development: Lead AI projects, specialize in deep learning`
               },
               {
                 headers: {
@@ -461,7 +431,7 @@ function AppContent() {
         // First check if this is the name response
         if (!hasHandledName) {
           setHasHandledName(true);
-          console.log('Name response handled, future responses will be counted');
+          // Name has been handled, enable question counting
         }
 
         const response = await axios.post(
@@ -489,8 +459,6 @@ function AppContent() {
         };
 
         // Update conversation with assistant's response
-        setConversation(prev => [...prev, assistantMessage]);
-      
         setConversation(prev => [...prev, assistantMessage]);
         await incrementQuestionCount(response.data, userMessage.content);
         
