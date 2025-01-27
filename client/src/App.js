@@ -77,64 +77,10 @@ function AppContent() {
   const [questionCount, setQuestionCount] = useState(0);
   const [maxQuestions] = useState(12);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false);
+  const [hasHandledName, setHasHandledName] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
-  // Add helper function to determine if a message should count as a question
-  const shouldCountAsQuestion = (message) => {
-    // Add detailed logging
-    console.log('\n=== Checking Question Count ===');
-    console.log('Current question count:', questionCount);
-    console.log('Message being checked:', message);
-    
-    // Don't count if message is null or doesn't have required properties
-    if (!message || (!message.text && !message.content)) {
-      console.log('❌ Message invalid, not counting');
-      return false;
-    }
-    
-    // Get the text from either text or content property
-    const text = (message.text || message.content).toLowerCase();
-    console.log('Message text:', text);
-    
-    // List of phrases that indicate non-question messages
-    const excludePhrases = [
-      "hi, i'm atlas",
-      "hello",
-      "nice to meet you",
-      "what's your name",
-      "great to meet you",
-      "thanks for sharing",
-      "thank you",
-      "i understand",
-      "that's interesting",
-      "i apologize",
-      "sorry"
-    ];
-
-    // Check if the message contains any exclude phrases
-    if (excludePhrases.some(phrase => text.includes(phrase.toLowerCase()))) {
-      console.log('❌ Message contains exclude phrase, not counting');
-      return false;
-    }
-
-    // Count if it's a multiple choice or ranking question
-    if (message.type === 'multiple_choice' || message.type === 'ranking') {
-      console.log('✅ Message is multiple choice or ranking, counting');
-      return true;
-    }
-
-    // Count if it contains a question mark and isn't an error message
-    if (text.includes('?') && 
-        !text.startsWith('i apologize') && 
-        !text.startsWith('sorry')) {
-      console.log('✅ Message contains question mark and is not an error, counting');
-      return true;
-    }
-
-    console.log('❌ Message does not meet counting criteria');
-    return false;
-  };
 
   useEffect(() => {
     console.log('\n=== Question Count Changed ===');
@@ -244,14 +190,13 @@ function AppContent() {
 
       setConversation((prev) => [...prev, assistantMessage]);
       
-      // Increment counter if this should count as a question
-      if (shouldCountAsQuestion(response.data)) {
+      // Only count questions after the name response
+      if (hasHandledName) {
         const newCount = questionCount + 1;
         setQuestionCount(newCount);
         console.log(`Question count increased to ${newCount}`);
 
-        // Only proceed with summary if we've completed the last question and it's not an interactive message
-        if (newCount === maxQuestions && !response.data.type) {
+        if (newCount === maxQuestions) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
@@ -437,17 +382,13 @@ Here's an example of a properly formatted response:
       // Update conversation with assistant's response
       setConversation(prev => [...prev, assistantMessage]);
         
-        // Increment counter if this should count as a question
-        if (shouldCountAsQuestion(response.data)) {
+        // Only count questions after the name response
+        if (hasHandledName) {
           const newCount = questionCount + 1;
-          console.log('\n=== Updating Question Count ===');
-          console.log('Previous count:', questionCount);
-          console.log('New count:', newCount);
-          console.log('Max questions:', maxQuestions);
           setQuestionCount(newCount);
+          console.log(`Question count increased to ${newCount}`);
 
-          // Only proceed with summary if we've completed the last question and it's not an interactive message
-          if (newCount === maxQuestions && !response.data.type) {
+          if (newCount === maxQuestions) {
           // Set initial null state for all summary sections
           setAssessmentSummary({
             summaryOfResponses: null,
@@ -558,6 +499,11 @@ Here's an example of a properly formatted response:
         setConversation((prev) => [...prev, errorMessage]);
       } finally {
         setLoading(false);
+      }
+      
+      // Mark that we've handled the name response if we haven't yet
+      if (!hasHandledName) {
+        setHasHandledName(true);
       }
   };
 
