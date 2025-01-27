@@ -43,15 +43,25 @@ class OpenRouterAPI {
         throw new Error(`OpenRouter API error: ${response.status} - ${JSON.stringify(data)}`);
       }
 
-      // Validate response format
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      // Extract the actual content from the response
+      if (!data.choices?.[0]?.message?.content) {
         console.error('\n=== Invalid Response Format ===');
         console.error('Received Data:', JSON.stringify(data, null, 2));
         throw new Error('Invalid response format from OpenRouter API');
       }
 
-      console.log('\n=== Successfully Processed Response ===');
-      return data;
+      // Parse the content string as JSON
+      try {
+        const parsedContent = JSON.parse(data.choices[0].message.content);
+        console.log('\n=== Successfully Processed Response ===');
+        console.log('Parsed Content:', JSON.stringify(parsedContent, null, 2));
+        return parsedContent; // Return the parsed JSON directly
+      } catch (parseError) {
+        console.error('\n=== JSON Parse Error ===');
+        console.error('Parse Error:', parseError);
+        console.error('Content:', data.choices[0].message.content);
+        throw new Error('Failed to parse response content as JSON');
+      }
     } catch (error) {
       console.error('\n=== Error in getChatCompletion ===');
       console.error('Error Type:', error.constructor.name);
