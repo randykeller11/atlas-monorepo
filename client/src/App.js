@@ -10,6 +10,7 @@ import {
 import Admin from "./components/Admin";
 import Chat from "./components/Chat";
 import Results from "./components/Results";
+import Welcome from "./components/Welcome";
 import config from "./config";
 
 const { API_URL } = config;
@@ -61,13 +62,9 @@ export const Dropdown = ({ isOpen }) => {
 };
 
 function AppContent() {
-  const [conversation, setConversation] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hi, I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What's your name?",
-    },
-  ]);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [userName, setUserName] = useState('');
+  const [conversation, setConversation] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
@@ -330,6 +327,17 @@ Here's an example of a properly formatted response:
     }
   };
 
+  const handleNameSubmit = (name) => {
+    setUserName(name);
+    setShowWelcome(false);
+    setConversation([
+      {
+        role: "assistant",
+        content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! Let's start exploring your interests and potential career paths.`,
+      }
+    ]);
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       sendMessage();
@@ -513,7 +521,9 @@ Here's an example of a properly formatted response:
       <Route
         path="/"
         element={
-          showResults ? (
+          showWelcome ? (
+            <Welcome onNameSubmit={handleNameSubmit} />
+          ) : showResults ? (
             <Results summary={assessmentSummary} />
           ) : (
             <Chat
