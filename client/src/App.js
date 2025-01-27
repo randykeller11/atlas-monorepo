@@ -390,11 +390,12 @@ function AppContent() {
     // Set processing state after validating the selection
     setIsProcessingResponse(true);
 
-    // Create user message
+    // Create user message with context
     const userMessage = {
       role: "user",
-      content: typeof selectedOption === 'string' ? selectedOption : 
-        question.options?.find((opt) => opt.id === selectedOption)?.text || selectedOption,
+      content: question.type === 'multiple_choice' ? 
+        `For the question "${question.question}", I chose: ${question.options?.find((opt) => opt.id === selectedOption)?.text}` :
+        selectedOption
     };
 
     // Update conversation immediately
@@ -408,10 +409,15 @@ function AppContent() {
           // Name has been handled, enable question counting
         }
 
+        // Update conversation history with context
+        const updatedHistory = [...conversationHistory, userMessage];
+        setConversationHistory(updatedHistory);
+
         const response = await axios.post(
           `${API_URL}/api/message`,
           {
             message: userMessage.content,
+            conversation: updatedHistory
           },
           {
             headers: {
@@ -434,6 +440,13 @@ function AppContent() {
 
         // Update conversation with assistant's response
         setConversation(prev => [...prev, assistantMessage]);
+        
+        // Update conversation history with assistant's response
+        setConversationHistory([...updatedHistory, {
+          role: "assistant",
+          content: response.data.content
+        }]);
+
         await incrementQuestionCount(response.data, userMessage.content);
         
         // Remove results check - now handled in incrementQuestionCount
