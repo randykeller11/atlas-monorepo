@@ -113,44 +113,49 @@ function AppContent() {
           const summaryResponse = await axios.post(
             `${API_URL}/api/message`,
             {
-              message: `[GENERATE_RESULTS] Please provide a comprehensive career assessment following this exact format:
-
-1. Summary of Responses:
-- Interest Exploration: [summary]
-- Technical Aptitude: [summary]
-- Work Style: [summary]
-- Career Values: [summary]
-
-2. Career Matches:
-- [Role] (XX% match): [explanation]
-[List 2-3 matches with percentages and explanations]
-
-3. Salary Information:
-- [Role]: [Salary range and progression]
-[Include for each matched role]
-
-4. Education Path:
-Courses:
-- [Specific course names]
-Certifications:
-- [Specific certification names]
-
-5. Portfolio Recommendations:
-- [2-3 specific project ideas]
-- [Skill-building activities]
-- [Online presence suggestions]
-
-6. Networking Suggestions:
-- [Professional organizations]
-- [Online communities]
-- [Local tech groups]
-- [Student organizations]
-
-7. Career Roadmap:
-High School: [steps]
-College: [milestones]
-Early Career: [goals]
-Long-term Development: [path]`,
+              message: `[GENERATE_RESULTS] Please analyze our conversation and return a JSON object with this exact structure:
+{
+  "1. Summary of Responses": {
+    "Interest Exploration": "string",
+    "Technical Aptitude": "string", 
+    "Work Style": "string",
+    "Career Values": "string"
+  },
+  "2. Career Matches": [
+    {
+      "role": "string",
+      "match": "95%",
+      "explanation": "string"
+    }
+  ],
+  "3. Salary Information": [
+    {
+      "role": "string",
+      "salary": "string",
+      "progression": "string" 
+    }
+  ],
+  "4. Education Path": {
+    "Courses": [
+      "string"
+    ],
+    "Certifications": [
+      "string"
+    ]
+  },
+  "5. Portfolio Recommendations": [
+    "string"
+  ],
+  "6. Networking Suggestions": [
+    "string"
+  ],
+  "7. Career Roadmap": {
+    "High School": "string",
+    "College": "string",
+    "Early Career": "string",
+    "Long-term Development": "string"
+  }
+}`,
               conversation: conversationHistory
             },
             {
