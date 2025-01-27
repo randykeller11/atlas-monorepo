@@ -346,8 +346,6 @@ Here's an example of a properly formatted response:
     setUserName(name);
     setShowWelcome(false);
     setLoading(true);
-    // Set hasHandledName to true immediately since we're past the welcome screen
-    setHasHandledName(true);
 
     try {
       const response = await axios.post(
@@ -375,6 +373,8 @@ Here's an example of a properly formatted response:
       };
 
       setConversation([assistantMessage]);
+      // Set hasHandledName after the first response
+      setHasHandledName(true);
     } catch (error) {
       console.error("Error:", error);
       // Set a fallback message if the API call fails
