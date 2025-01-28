@@ -283,7 +283,10 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
       <div style={styles.radioGroup}>
         {optionsWithOther.map((option) => (
           <div key={option.id} style={styles.optionContainer}>
-            <label style={styles.radioOption}>
+            <label style={{
+              ...styles.radioOption,
+              marginBottom: option.id === 'other' && selectedOption === 'other' ? '0' : '8px'
+            }}>
               <input
                 type="radio"
                 name={`question-${message.question}`}
@@ -295,16 +298,14 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
               {option.text}
             </label>
             {option.id === 'other' && selectedOption === 'other' && (
-              <div style={styles.otherInputContainer}>
-                <input
-                  type="text"
-                  value={otherText}
-                  onChange={(e) => setOtherText(e.target.value)}
-                  placeholder="Please specify..."
-                  style={styles.otherInput}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
+              <input
+                type="text"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+                placeholder="Please specify..."
+                style={styles.otherInput}
+                onClick={(e) => e.stopPropagation()}
+              />
             )}
           </div>
         ))}
