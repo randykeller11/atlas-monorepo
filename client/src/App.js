@@ -359,69 +359,35 @@ function AppContent() {
   const handleNameSubmit = async (name) => {
     setUserName(name);
     setShowWelcome(false);
-    setLoading(true);
+    
+    // Directly set the initial greeting without making an API call
+    const initialGreeting = {
+      role: "assistant",
+      content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
+      type: "text"
+    };
 
-    try {
-      const response = await axios.post(
-        `${API_URL}/api/message`,
-        {
-          message: name,
-          conversation: [] // Add empty conversation array for first message
-        },
-        {
-          headers: {
-            "session-id": sessionId,
-          },
-        }
-      );
-
-      // Check if we have a valid response
-      if (!response.data || !response.data.content) {
-        throw new Error('Invalid response format');
-      }
-
-      const assistantMessage = {
+    // Set the initial conversation state
+    setConversation([initialGreeting]);
+    
+    // Initialize conversation history with system message
+    setConversationHistory([
+      {
+        role: "system",
+        content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
+      },
+      {
+        role: "user",
+        content: name
+      },
+      {
         role: "assistant",
-        content: response.data.content,
-        type: response.data.type || 'text',
-        question: response.data.question,
-        items: response.data.items,
-        totalRanks: response.data.totalRanks,
-        options: response.data.options,
-      };
+        content: initialGreeting.content
+      }
+    ]);
 
-      // Update both conversation and conversation history
-      setConversation([assistantMessage]);
-      setConversationHistory([
-        {
-          role: "system",
-          content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
-        },
-        {
-          role: "user",
-          content: name
-        },
-        {
-          role: "assistant",
-          content: response.data.content
-        }
-      ]);
-
-    } catch (error) {
-      console.error("Error in handleNameSubmit:", error);
-      console.error("Response data:", error.response?.data);
-      
-      // Only use fallback if we really need to
-      setConversation([
-        {
-          role: "assistant",
-          content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
-          type: "text"
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    // Don't set hasHandledName here - it will be set on the first actual response
+    // This ensures the first real question gets counted properly
   };
 
   const handleKeyPress = (e) => {
