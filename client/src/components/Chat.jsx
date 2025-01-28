@@ -293,26 +293,28 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
               ...styles.radioOption,
               marginBottom: option.id === 'other' && selectedOption === 'other' ? '0' : '8px'
             }}>
-              <input
-                type="radio"
-                name={`question-${message.question}`}
-                value={option.id}
-                checked={selectedOption === option.id}
-                onChange={() => handleSelect(option.id)}
-                style={styles.radioInput}
-              />
-              {option.text}
+              <div style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`question-${message.question}`}
+                  value={option.id}
+                  checked={selectedOption === option.id}
+                  onChange={() => handleSelect(option.id)}
+                  style={styles.radioInput}
+                />
+                {option.text}
+              </div>
+              {option.id === 'other' && selectedOption === 'other' && (
+                <input
+                  type="text"
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  placeholder="Please specify..."
+                  style={styles.otherInput}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
             </label>
-            {option.id === 'other' && selectedOption === 'other' && (
-              <input
-                type="text"
-                value={otherText}
-                onChange={(e) => setOtherText(e.target.value)}
-                placeholder="Please specify..."
-                style={styles.otherInput}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
           </div>
         ))}
       </div>
