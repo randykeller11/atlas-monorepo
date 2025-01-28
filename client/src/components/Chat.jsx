@@ -162,6 +162,14 @@ const styles = {
   radioInput: {
     margin: '0',
   },
+  otherInput: {
+    marginLeft: '10px',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+    fontSize: '14px',
+    width: '200px'
+  },
   disabledInput: {
     flex: "1",
     padding: "12px",
@@ -216,7 +224,13 @@ const styles = {
 
 const MultipleChoiceQuestion = ({ message, onSelect }) => {
   const [selectedOption, setSelectedOption] = useState(null);
+  const [otherText, setOtherText] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const optionsWithOther = [
+    ...message.options,
+    { id: 'other', text: 'Other (please specify)' }
+  ];
 
   const handleSelect = (optionId) => {
     setSelectedOption(optionId);
@@ -225,15 +239,27 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
 
   const handleSubmit = () => {
     if (selectedOption && !isSubmitted) {
-      const selectedText = message.options.find(opt => opt.id === selectedOption)?.text;
-      if (selectedText) {
-        onSelect({
-          target: {
-            value: selectedOption,
-            selectedText: selectedText
-          }
-        });
-        setIsSubmitted(true);
+      if (selectedOption === 'other') {
+        if (otherText.trim()) {
+          onSelect({
+            target: {
+              value: otherText.trim(),
+              selectedText: otherText.trim()
+            }
+          });
+          setIsSubmitted(true);
+        }
+      } else {
+        const selectedText = message.options.find(opt => opt.id === selectedOption)?.text;
+        if (selectedText) {
+          onSelect({
+            target: {
+              value: selectedOption,
+              selectedText: selectedText
+            }
+          });
+          setIsSubmitted(true);
+        }
       }
     }
   };
@@ -242,7 +268,7 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
     <div style={styles.multipleChoice}>
       <div><strong>{message.question}</strong></div>
       <div style={styles.radioGroup}>
-        {message.options.map((option) => (
+        {optionsWithOther.map((option) => (
           <label key={option.id} style={styles.radioOption}>
             <input
               type="radio"
@@ -253,17 +279,27 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
               style={styles.radioInput}
             />
             {option.text}
+            {option.id === 'other' && selectedOption === 'other' && (
+              <input
+                type="text"
+                value={otherText}
+                onChange={(e) => setOtherText(e.target.value)}
+                placeholder="Please specify..."
+                style={styles.otherInput}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </label>
         ))}
       </div>
       <button
         style={{
           ...styles.submitRanking,
-          opacity: selectedOption ? 1 : 0.5,
-          cursor: selectedOption ? 'pointer' : 'not-allowed'
+          opacity: selectedOption && (selectedOption !== 'other' || otherText.trim()) ? 1 : 0.5,
+          cursor: selectedOption && (selectedOption !== 'other' || otherText.trim()) ? 'pointer' : 'not-allowed'
         }}
         onClick={handleSubmit}
-        disabled={!selectedOption}
+        disabled={!selectedOption || (selectedOption === 'other' && !otherText.trim())}
       >
         Submit Choice
       </button>
