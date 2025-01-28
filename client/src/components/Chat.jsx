@@ -158,6 +158,7 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     backgroundColor: '#f0f0f0',
+    width: '100%'
   },
   radioInput: {
     margin: '0',
@@ -168,16 +169,12 @@ const styles = {
     width: '100%',
     marginBottom: '8px'
   },
-  otherInputContainer: {
-    width: '100%',
-    paddingLeft: '32px',
-    marginTop: '8px'
-  },
   otherInput: {
     width: '100%',
     padding: '8px 12px',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
+    borderRadius: '0 0 4px 4px',
+    border: 'none',
+    borderTop: '1px solid #ccc',
     fontSize: '16px',
     minHeight: '60px',
     resize: 'vertical',
