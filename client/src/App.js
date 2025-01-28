@@ -366,6 +366,7 @@ function AppContent() {
         `${API_URL}/api/message`,
         {
           message: name,
+          conversation: [] // Add empty conversation array for first message
         },
         {
           headers: {
@@ -374,27 +375,49 @@ function AppContent() {
         }
       );
 
-      validateResponse(response.data);
+      // Check if we have a valid response
+      if (!response.data || !response.data.content) {
+        throw new Error('Invalid response format');
+      }
 
       const assistantMessage = {
         role: "assistant",
-        content: response.data.content,  // Changed from response.data.text
-        type: response.data.type,
+        content: response.data.content,
+        type: response.data.type || 'text',
         question: response.data.question,
         items: response.data.items,
         totalRanks: response.data.totalRanks,
         options: response.data.options,
       };
 
+      // Update both conversation and conversation history
       setConversation([assistantMessage]);
+      setConversationHistory([
+        {
+          role: "system",
+          content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
+        },
+        {
+          role: "user",
+          content: name
+        },
+        {
+          role: "assistant",
+          content: response.data.content
+        }
+      ]);
+
     } catch (error) {
-      console.error("Error:", error);
-      // Set a fallback message if the API call fails
+      console.error("Error in handleNameSubmit:", error);
+      console.error("Response data:", error.response?.data);
+      
+      // Only use fallback if we really need to
       setConversation([
         {
           role: "assistant",
           content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
-        },
+          type: "text"
+        }
       ]);
     } finally {
       setLoading(false);
