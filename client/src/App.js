@@ -404,10 +404,11 @@ function AppContent() {
     setIsProcessingResponse(true);
 
     // Create user message with context based on question type
+    const selectedText = e.target.selectedText;  // Get the selected text from the event
     const userMessage = {
       role: "user",
       content: question.type === 'multiple_choice' ? 
-        `For the question "${question.question}", I chose: ${question.options?.find((opt) => opt.id === selectedOption)?.text}` :
+        `For the question "${question.question}", I chose: ${selectedText || question.options?.find((opt) => opt.id === selectedOption)?.text}` :
         question.type === 'ranking' ?
         `For the ranking question "${question.question}", my ranking order is: ${selectedOption}` :
         selectedOption
