@@ -164,11 +164,14 @@ const styles = {
   },
   otherInput: {
     marginLeft: '10px',
-    padding: '4px 8px',
+    padding: '8px 12px',
     borderRadius: '4px',
     border: '1px solid #ccc',
-    fontSize: '14px',
-    width: '200px'
+    fontSize: '16px',
+    width: '300px',
+    minHeight: '60px',
+    resize: 'vertical',
+    fontFamily: 'inherit'
   },
   disabledInput: {
     flex: "1",
