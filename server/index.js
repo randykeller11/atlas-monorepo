@@ -28,6 +28,7 @@ const getConversationState = (sessionId) => {
         text: 0,
         ranking: 0
       },
+      lastQuestionType: null,
       totalQuestions: 0,
       hasOpenEndedInSection: {
         interestExploration: false,
@@ -46,6 +47,7 @@ const updateConversationState = (sessionId, response) => {
   if (response.type && ['multiple_choice', 'ranking', 'text'].includes(response.type)) {
     state.questionTypes[response.type]++;
     state.totalQuestions++;
+    state.lastQuestionType = response.type;
     
     // Track open-ended questions per section
     if (response.type === 'text') {
@@ -1100,6 +1102,7 @@ app.post("/api/message", async (req, res) => {
       content: `You are Atlas, a career guidance AI. 
                 Current section: ${state.currentSection}
                 Questions asked: ${state.totalQuestions}/10
+                Last question type: ${state.lastQuestionType}
                 
                 Section Progress:
                 - Interest Exploration: ${state.sections.interestExploration}/3
@@ -1111,6 +1114,15 @@ app.post("/api/message", async (req, res) => {
                 - Multiple choice remaining: ${6 - state.questionTypes.multiple_choice}
                 - Text questions remaining: ${2 - state.questionTypes.text}
                 - Ranking questions remaining: ${2 - state.questionTypes.ranking}
+
+                IMPORTANT RULES:
+                1. NEVER use the same question type twice in a row
+                2. Current question MUST NOT be of type: ${state.lastQuestionType}
+                3. Use remaining question types: ${['multiple_choice', 'ranking', 'text']
+                  .filter(type => type !== state.lastQuestionType)
+                  .join(' or ')}
+                4. Each section MUST have at least one open-ended question
+                5. Follow the required distribution of question types
 
                 Section Requirements:
                 - Each section MUST have at least one open-ended question
