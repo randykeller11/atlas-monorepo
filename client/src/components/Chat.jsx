@@ -158,6 +158,14 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
     backgroundColor: '#f0f0f0',
+    width: '100%',
+    flexDirection: 'column',
+    alignItems: 'flex-start'
+  },
+  radioLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
     width: '100%'
   },
   radioInput: {
@@ -170,15 +178,16 @@ const styles = {
     marginBottom: '8px'
   },
   otherInput: {
-    width: '100%',
+    width: 'calc(100% - 16px)',
     padding: '8px 12px',
-    borderRadius: '0 0 4px 4px',
-    border: 'none',
-    borderTop: '1px solid #ccc',
+    margin: '8px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
     fontSize: '16px',
     minHeight: '60px',
     resize: 'vertical',
-    fontFamily: 'inherit'
+    fontFamily: 'inherit',
+    backgroundColor: '#ffffff'
   },
   disabledInput: {
     flex: "1",
