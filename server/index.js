@@ -17,18 +17,23 @@ const getConversationState = (sessionId) => {
   if (!conversationStates.has(sessionId)) {
     conversationStates.set(sessionId, {
       currentSection: 'introduction',
-      questionsAsked: 0,
-      sectionsCompleted: {
+      sections: {
         interestExploration: 0,
         workStyle: 0,
         technicalAptitude: 0,
         careerValues: 0
       },
-      currentSectionQuestions: 0,
       questionTypes: {
         multiple_choice: 0,
         text: 0,
         ranking: 0
+      },
+      totalQuestions: 0,
+      hasOpenEndedInSection: {
+        interestExploration: false,
+        workStyle: false,
+        technicalAptitude: false,
+        careerValues: false
       }
     });
   }
@@ -39,29 +44,31 @@ const updateConversationState = (sessionId, response) => {
   const state = getConversationState(sessionId);
   
   if (response.type && ['multiple_choice', 'ranking', 'text'].includes(response.type)) {
-    state.questionsAsked++;
-    state.currentSectionQuestions++;
     state.questionTypes[response.type]++;
+    state.totalQuestions++;
+    
+    // Track open-ended questions per section
+    if (response.type === 'text') {
+      state.hasOpenEndedInSection[state.currentSection] = true;
+    }
+    
+    // Update section counts and manage transitions
+    state.sections[state.currentSection]++;
+    
+    // Section transition logic
+    if (state.currentSection === 'introduction' && state.totalQuestions === 1) {
+      state.currentSection = 'interestExploration';
+    } else if (state.currentSection === 'interestExploration' && state.sections.interestExploration === 3) {
+      state.currentSection = 'workStyle';
+    } else if (state.currentSection === 'workStyle' && state.sections.workStyle === 2) {
+      state.currentSection = 'technicalAptitude';
+    } else if (state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 2) {
+      state.currentSection = 'careerValues';
+    }
   }
 
-  if (state.currentSection === 'introduction' && state.questionsAsked === 1) {
-    state.currentSection = 'interestExploration';
-  } else if (state.currentSection === 'interestExploration' && state.currentSectionQuestions === 3) {
-    state.currentSection = 'workStyle';
-    state.currentSectionQuestions = 0;
-    state.sectionsCompleted.interestExploration = 3;
-  } else if (state.currentSection === 'workStyle' && state.currentSectionQuestions === 2) {
-    state.currentSection = 'technicalAptitude';
-    state.currentSectionQuestions = 0;
-    state.sectionsCompleted.workStyle = 2;
-  } else if (state.currentSection === 'technicalAptitude' && state.currentSectionQuestions === 2) {
-    state.currentSection = 'careerValues';
-    state.currentSectionQuestions = 0;
-    state.sectionsCompleted.technicalAptitude = 2;
-  }
-
-  state.sectionsCompleted[state.currentSection]++;
   conversationStates.set(sessionId, state);
+  return state;
 };
 
 // Initialize dotenv
@@ -1090,21 +1097,35 @@ app.post("/api/message", async (req, res) => {
     // Add state information to system message
     const systemMessage = {
       role: "system",
-      content: `You are Atlas, a career guidance AI. Current section: ${state.currentSection}. Questions asked: ${state.questionsAsked}/10. 
-                Section progress: Interest Exploration (${state.sectionsCompleted.interestExploration}/3), 
-                Work Style (${state.sectionsCompleted.workStyle}/2), 
-                Technical Aptitude (${state.sectionsCompleted.technicalAptitude}/2), 
-                Career Values (${state.sectionsCompleted.careerValues}/3).
+      content: `You are Atlas, a career guidance AI. 
+                Current section: ${state.currentSection}
+                Questions asked: ${state.totalQuestions}/10
                 
-                IMPORTANT: You MUST ask questions following this exact distribution:
-                - 6 multiple choice questions
-                - 2 text (open-ended) questions
-                - 2 ranking questions
+                Section Progress:
+                - Interest Exploration: ${state.sections.interestExploration}/3
+                - Work Style: ${state.sections.workStyle}/2
+                - Technical Aptitude: ${state.sections.technicalAptitude}/2
+                - Career Values: ${state.sections.careerValues}/3
+                
+                Question Distribution:
+                - Multiple choice remaining: ${6 - state.questionTypes.multiple_choice}
+                - Text questions remaining: ${2 - state.questionTypes.text}
+                - Ranking questions remaining: ${2 - state.questionTypes.ranking}
 
-                Questions remaining:
-                - Multiple choice: ${6 - (state.questionTypes?.multiple_choice || 0)}
-                - Text: ${2 - (state.questionTypes?.text || 0)}
-                - Ranking: ${2 - (state.questionTypes?.ranking || 0)}
+                Section Requirements:
+                - Each section MUST have at least one open-ended question
+                - Interest Exploration needs ${3 - state.sections.interestExploration} more questions
+                - Work Style needs ${2 - state.sections.workStyle} more questions
+                - Technical Aptitude needs ${2 - state.sections.technicalAptitude} more questions
+                - Career Values needs ${3 - state.sections.careerValues} more questions
+                
+                Current section focus:
+                ${state.currentSection === 'interestExploration' ? '- Focus on personal hobbies, academic subjects, and innate curiosities' : ''}
+                ${state.currentSection === 'workStyle' ? '- Evaluate ideal working environment and communication preferences' : ''}
+                ${state.currentSection === 'technicalAptitude' ? '- Gauge comfort with coding, design, data, or IT tasks' : ''}
+                ${state.currentSection === 'careerValues' ? '- Understand motivations and desired work-life balance' : ''}
+
+                ${!state.hasOpenEndedInSection[state.currentSection] ? 'IMPORTANT: This section still needs an open-ended question' : ''}
 
                 Use this format for responses:
 
