@@ -162,13 +162,23 @@ const styles = {
   radioInput: {
     margin: '0',
   },
+  optionContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    marginBottom: '8px'
+  },
+  otherInputContainer: {
+    width: '100%',
+    paddingLeft: '32px',
+    marginTop: '8px'
+  },
   otherInput: {
-    marginLeft: '10px',
+    width: '100%',
     padding: '8px 12px',
     borderRadius: '4px',
     border: '1px solid #ccc',
     fontSize: '16px',
-    width: '300px',
     minHeight: '60px',
     resize: 'vertical',
     fontFamily: 'inherit'
@@ -272,27 +282,31 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
       <div><strong>{message.question}</strong></div>
       <div style={styles.radioGroup}>
         {optionsWithOther.map((option) => (
-          <label key={option.id} style={styles.radioOption}>
-            <input
-              type="radio"
-              name={`question-${message.question}`}
-              value={option.id}
-              checked={selectedOption === option.id}
-              onChange={() => handleSelect(option.id)}
-              style={styles.radioInput}
-            />
-            {option.text}
-            {option.id === 'other' && selectedOption === 'other' && (
+          <div key={option.id} style={styles.optionContainer}>
+            <label style={styles.radioOption}>
               <input
-                type="text"
-                value={otherText}
-                onChange={(e) => setOtherText(e.target.value)}
-                placeholder="Please specify..."
-                style={styles.otherInput}
-                onClick={(e) => e.stopPropagation()}
+                type="radio"
+                name={`question-${message.question}`}
+                value={option.id}
+                checked={selectedOption === option.id}
+                onChange={() => handleSelect(option.id)}
+                style={styles.radioInput}
               />
+              {option.text}
+            </label>
+            {option.id === 'other' && selectedOption === 'other' && (
+              <div style={styles.otherInputContainer}>
+                <input
+                  type="text"
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  placeholder="Please specify..."
+                  style={styles.otherInput}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
             )}
-          </label>
+          </div>
         ))}
       </div>
       <button
