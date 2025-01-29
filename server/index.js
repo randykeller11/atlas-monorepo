@@ -745,55 +745,6 @@ const needsFormatting = (text) => {
   return questionPatterns.some((pattern) => pattern.test(text));
 };
 
-// Update sanitizeResponse with smarter handling
-const sanitizeResponse = async (rawResponse, threadId, timeoutMs = 45000) => {
-  try {
-    // First try to parse any structured content
-    const parsedResponse = parseResponse(rawResponse);
-
-    // If it's not a properly formatted response, attempt to fix it
-    if (parsedResponse.type === 'text') {
-      const detectedType = detectQuestionType(rawResponse);
-      
-      if (detectedType === 'multiple_choice') {
-        const options = extractOptions(rawResponse);
-        const question = extractQuestion(rawResponse);
-        
-        if (options.length > 0) {
-          return {
-            text: rawResponse.split('?')[0] + '?',
-            type: 'multiple_choice',
-            question: question,
-            options: options
-          };
-        }
-      } else if (detectedType === 'ranking') {
-        const items = extractOptions(rawResponse);
-        if (items.length >= 2) {
-          return {
-            text: rawResponse.split(/(?:rank|order|prioritize)/i)[0].trim(),
-            type: 'ranking',
-            question: 'Please rank these options in order of preference:',
-            items: items,
-            totalRanks: items.length
-          };
-        }
-      }
-
-      // If we still need formatting, try to get a new response
-      if (needsFormatting(rawResponse)) {
-        console.log('Attempting to get properly formatted response from API');
-        const retryResponse = await retryAssistantResponse(threadId, 2, timeoutMs);
-        if (retryResponse) return retryResponse;
-      }
-    }
-
-    return parsedResponse;
-  } catch (error) {
-    console.error('Sanitization error:', error);
-    return createFallbackResponse();
-  }
-};
 
 const containsUnformattedList = (text) => {
   // Check for numbered lists, bullet points, or lettered lists
