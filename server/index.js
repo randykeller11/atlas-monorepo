@@ -49,23 +49,40 @@ const updateConversationState = (sessionId, response) => {
     state.totalQuestions++;
     state.lastQuestionType = response.type;
     
-    // Track open-ended questions per section
-    if (response.type === 'text') {
-      state.hasOpenEndedInSection[state.currentSection] = true;
-    }
-    
-    // Update section counts and manage transitions
+    // Update section counts and manage transitions with specific question types
     state.sections[state.currentSection]++;
     
-    // Section transition logic
+    // Section transition logic with predetermined question types
     if (state.currentSection === 'introduction' && state.totalQuestions === 1) {
+      // First question was text (name response), next should be multiple choice
       state.currentSection = 'interestExploration';
-    } else if (state.currentSection === 'interestExploration' && state.sections.interestExploration === 3) {
+      state.hasOpenEndedInSection.introduction = true;
+    } 
+    else if (state.currentSection === 'interestExploration' && state.sections.interestExploration === 2) {
+      // Interest Exploration: 2 multiple choice questions
       state.currentSection = 'workStyle';
-    } else if (state.currentSection === 'workStyle' && state.sections.workStyle === 2) {
+    } 
+    else if (state.currentSection === 'workStyle' && state.sections.workStyle === 2) {
+      // Work Style: 1 multiple choice, 1 ranking question
       state.currentSection = 'technicalAptitude';
-    } else if (state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 2) {
+    } 
+    else if (state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 2) {
+      // Technical Aptitude: 1 multiple choice, 1 ranking question
       state.currentSection = 'careerValues';
+    }
+    
+    // Force specific question types based on section and progress
+    if (state.currentSection === 'workStyle' && state.sections.workStyle === 1) {
+      // First Work Style question should be multiple choice, second should be ranking
+      state.lastQuestionType = 'multiple_choice';
+    }
+    else if (state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 1) {
+      // First Technical Aptitude question should be multiple choice, second should be ranking
+      state.lastQuestionType = 'multiple_choice';
+    }
+    else if (state.currentSection === 'careerValues' && state.sections.careerValues === 2) {
+      // Last Career Values question should be text-based
+      state.lastQuestionType = 'multiple_choice';
     }
   }
 
