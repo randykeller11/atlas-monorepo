@@ -1,4 +1,4 @@
-import fetch from "node-fetch";
+import fetch from "node-fetch/src/index.js";
 
 class OpenRouterAPI {
   constructor(config) {
