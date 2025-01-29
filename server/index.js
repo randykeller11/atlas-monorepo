@@ -9,6 +9,7 @@ import { dirname } from 'path';
 import { users } from "./users.js";
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizeResponse } from './sanitizer.js';
 
 // Conversation state management
 const conversationStates = new Map();
@@ -1263,8 +1264,6 @@ app.post("/api/message", async (req, res) => {
     }
 
     try {
-      import { sanitizeResponse } from './sanitizer.js';
-      
       // Get raw response content
       const rawResponse = completion.choices[0].message.content;
       
