@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import OpenRouterAPI from "../api/openrouter.js";
+import OpenRouterAPI from "./api/openrouter.js";
 import { instructions } from "./instructions.js";
 import dotenv from 'dotenv';
 import path from 'path';
