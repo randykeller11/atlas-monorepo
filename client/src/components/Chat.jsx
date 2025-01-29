@@ -283,6 +283,14 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
     }
   };
 
+  // Add handler for Enter key
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && selectedOption === 'other' && otherText.trim() && !isSubmitted) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
     <div style={styles.multipleChoice}>
       <div><strong>{message.question}</strong></div>
@@ -311,6 +319,7 @@ const MultipleChoiceQuestion = ({ message, onSelect }) => {
                   onChange={(e) => setOtherText(e.target.value)}
                   placeholder="Please specify..."
                   style={styles.otherInput}
+                  onKeyPress={handleKeyPress}
                   onClick={(e) => e.stopPropagation()}
                 />
               )}
