@@ -1268,11 +1268,13 @@ app.post("/api/message", async (req, res) => {
       const rawResponse = completion.choices[0].message.content;
       
       // Sanitize and validate response
+      const state = getConversationState(sessionId);
       const sanitizedResponse = await sanitizeResponse(
-        rawResponse, 
-        getConversationState(sessionId),
+        rawResponse,
+        state,
         api,
-        [systemMessage, ...conversationArray, { role: "user", content: message }]
+        [systemMessage, ...conversationArray, { role: "user", content: message }],
+        0
       );
       
       // Update conversation state
