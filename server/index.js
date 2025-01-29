@@ -1269,8 +1269,8 @@ app.post("/api/message", async (req, res) => {
       
       // Sanitize and validate response
       const sanitizedResponse = await sanitizeResponse(
-        rawResponse,
-        state,
+        rawResponse, 
+        getConversationState(sessionId),
         api,
         [systemMessage, ...conversationArray, { role: "user", content: message }]
       );
