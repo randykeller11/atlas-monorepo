@@ -1263,25 +1263,25 @@ app.post("/api/message", async (req, res) => {
     }
 
     try {
-      // Parse the response content as JSON
-      const parsedResponse = JSON.parse(completion.choices[0].message.content);
+      const { sanitizeResponse } = require('./sanitizer');
       
-      // Log the parsed response for debugging
-      console.log('\n=== Parsed Response ===');
-      console.log(JSON.stringify(parsedResponse, null, 2));
+      // Get raw response content
+      const rawResponse = completion.choices[0].message.content;
       
-      // Validate the response has the required fields
-      if (!parsedResponse.type || !parsedResponse.content) {
-        console.error('Invalid response format:', parsedResponse);
-        throw new Error('Invalid response format: missing required fields');
-      }
+      // Sanitize and validate response
+      const sanitizedResponse = await sanitizeResponse(
+        rawResponse,
+        state,
+        api,
+        [systemMessage, ...conversationArray, { role: "user", content: message }]
+      );
       
-      // Update conversation state based on response
-      updateConversationState(sessionId, parsedResponse);
+      // Update conversation state
+      updateConversationState(sessionId, sanitizedResponse);
       
       // Add state to response
       const responseWithState = {
-        ...parsedResponse,
+        ...sanitizedResponse,
         _state: {
           questionsAsked: state.totalQuestions,
           currentSection: state.currentSection,
