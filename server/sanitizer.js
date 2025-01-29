@@ -132,7 +132,7 @@ const sanitizeResponse = async (response, state, api, messages, retryCount = 0) 
   }
 };
 
-module.exports = {
+export {
   sanitizeResponse,
   validateResponseFormat,
   enforceQuestionType

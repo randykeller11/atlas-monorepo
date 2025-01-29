@@ -1263,7 +1263,7 @@ app.post("/api/message", async (req, res) => {
     }
 
     try {
-      const { sanitizeResponse } = require('./sanitizer');
+      import { sanitizeResponse } from './sanitizer.js';
       
       // Get raw response content
       const rawResponse = completion.choices[0].message.content;
