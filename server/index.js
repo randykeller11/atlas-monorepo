@@ -1119,24 +1119,24 @@ app.post("/api/message", async (req, res) => {
       content: `You are Atlas, a career guidance AI. 
                 Current section: ${state.currentSection}
                 Questions asked: ${state.totalQuestions}/10
-                Last question type: ${state.lastQuestionType}
                 
-                Section Progress:
-                - Interest Exploration: ${state.sections.interestExploration}/3
+                STRICT QUESTION TYPE REQUIREMENTS:
+                - Interest Exploration: 2 multiple choice questions
+                - Work Style: 1 multiple choice, then 1 ranking question
+                - Technical Aptitude: 1 multiple choice, then 1 ranking question
+                - Career Values: 2 multiple choice, then 1 text question
+
+                Current Progress:
+                - Interest Exploration: ${state.sections.interestExploration}/2
                 - Work Style: ${state.sections.workStyle}/2
                 - Technical Aptitude: ${state.sections.technicalAptitude}/2
                 - Career Values: ${state.sections.careerValues}/3
-                
-                Question Distribution:
-                - Multiple choice remaining: ${6 - state.questionTypes.multiple_choice}
-                - Text questions remaining: ${2 - state.questionTypes.text}
-                - Ranking questions remaining: ${2 - state.questionTypes.ranking}
 
-                IMPORTANT RULES:
-                1. NEVER use the same question type twice in a row
-                2. Current question MUST NOT be of type: ${state.lastQuestionType}
-                3. Use remaining question types: ${['multiple_choice', 'ranking', 'text']
-                  .filter(type => type !== state.lastQuestionType)
+                NEXT QUESTION MUST BE:
+                ${state.currentSection === 'workStyle' && state.sections.workStyle === 1 ? '- RANKING question for work style preferences' : ''}
+                ${state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 1 ? '- RANKING question for technical preferences' : ''}
+                ${state.currentSection === 'careerValues' && state.sections.careerValues === 2 ? '- TEXT question about career goals' : ''}
+                ${state.currentSection === 'careerValues' && state.sections.careerValues < 2 ? '- MULTIPLE CHOICE question about career values' : ''}
                   .join(' or ')}
                 4. Each section MUST have at least one open-ended question
                 5. Follow the required distribution of question types
