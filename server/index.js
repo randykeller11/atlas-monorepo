@@ -1260,9 +1260,10 @@ app.post("/api/message", async (req, res) => {
       const responseWithState = {
         ...parsedResponse,
         _state: {
-          questionsAsked: state.questionsAsked,
+          questionsAsked: state.totalQuestions,
           currentSection: state.currentSection,
-          sectionsCompleted: state.sectionsCompleted
+          sectionsCompleted: state.sections,
+          questionTypes: state.questionTypes
         }
       };
       
