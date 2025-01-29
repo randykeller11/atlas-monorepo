@@ -17,10 +17,5 @@
     "node-fetch": "^3.3.2",
     "openai": "^4.75.0",
     "uuid": "^9.0.0"
-  },
-  "imports": {
-    "#node-fetch": {
-      "node": "node-fetch"
-    }
   }
 }
