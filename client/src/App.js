@@ -364,13 +364,13 @@ function AppContent() {
     const initialGreeting = {
       role: "assistant",
       content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
-      type: "text"
+      type: "text"  // Explicitly set the type as "text"
     };
 
     // Set the initial conversation state
     setConversation([initialGreeting]);
     
-    // Initialize conversation history with system message
+    // Initialize conversation history with system message and include the type
     setConversationHistory([
       {
         role: "system",
@@ -382,12 +382,13 @@ function AppContent() {
       },
       {
         role: "assistant",
-        content: initialGreeting.content
+        content: initialGreeting.content,
+        type: "text"  // Include the type in conversation history
       }
     ]);
 
-    // Don't set hasHandledName here - it will be set on the first actual response
-    // This ensures the first real question gets counted properly
+    // Set hasHandledName to true since we're counting this as our first question
+    setHasHandledName(true);
   };
 
   const handleKeyPress = (e) => {
