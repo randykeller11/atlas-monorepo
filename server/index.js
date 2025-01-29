@@ -10,7 +10,6 @@ import { users } from "./users.js";
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeResponse } from './sanitizer.js';
-import { sanitizeResponse } from './sanitizer.js';
 
 // Conversation state management
 const conversationStates = new Map();
