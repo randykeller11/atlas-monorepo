@@ -24,10 +24,10 @@ CREATE INDEX IF NOT EXISTS idx_persona_cards_session_id ON persona_cards(session
 CREATE INDEX IF NOT EXISTS idx_persona_cards_created_at ON persona_cards(created_at);
 
 -- Enable Row Level Security (RLS) for security
-ALTER TABLE persona_cards ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE persona_cards ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policy (basic policy for development - restrict in production)
-CREATE POLICY "Allow all operations for development" ON persona_cards FOR ALL USING (true);
+-- CREATE POLICY "Allow all operations for development" ON persona_cards FOR ALL USING (true);
 
 -- Add comments for documentation
 COMMENT ON TABLE persona_cards IS 'Stores enriched persona cards generated from career assessments';
