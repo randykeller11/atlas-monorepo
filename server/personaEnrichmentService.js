@@ -64,7 +64,21 @@ export async function enrichPersona(sessionId, options = {}) {
     // Parse and validate the response
     let enrichedData;
     try {
-      enrichedData = JSON.parse(aiResponse.content);
+      let jsonContent = aiResponse.content;
+      
+      // Handle markdown code blocks
+      const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+      
+      // Also handle plain code blocks
+      const codeMatch = jsonContent.match(/```\s*([\s\S]*?)\s*```/);
+      if (codeMatch && !jsonMatch) {
+        jsonContent = codeMatch[1];
+      }
+      
+      enrichedData = JSON.parse(jsonContent);
     } catch (parseError) {
       throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
     }
