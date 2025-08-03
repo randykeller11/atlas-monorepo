@@ -2048,8 +2048,10 @@ app.get('/api/admin/debug/tokens', async (req, res) => {
 // Demo endpoint for Randy Keller
 app.get('/api/demo/randy-keller', async (req, res) => {
   try {
+    const demoSessionId = 'demo-randy-keller-' + Date.now();
+    
     const demoData = {
-      sessionId: 'demo-randy-keller-' + Date.now(),
+      sessionId: demoSessionId,
       userName: 'Randy Keller',
       assessmentProgress: {
         questionsCompleted: 10,

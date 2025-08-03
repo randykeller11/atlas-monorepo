@@ -307,6 +307,17 @@ function AppContent() {
     }
   }, []);
 
+  // Check for demo mode
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isDemoMode = urlParams.get('demo') === 'randy';
+    
+    if (isDemoMode && sessionId) {
+      console.log('Demo mode detected, loading Randy Keller data...');
+      loadDemoData();
+    }
+  }, [sessionId]); // Depend on sessionId so it runs after session is set
+
   // Add cleanup effect
   useEffect(() => {
     const handleBeforeUnload = async () => {
@@ -454,35 +465,55 @@ function AppContent() {
     }
   };
 
-  const handleNameSubmit = async (name) => {
-    setUserName(name);
-    setShowWelcome(false);
+  const loadDemoData = async () => {
+    if (!sessionId) return;
     
-    // Check if this is demo data
-    const demoData = localStorage.getItem('demoData');
-    if (demoData) {
-      const demo = JSON.parse(demoData);
+    try {
+      console.log('Loading demo data...');
+      const response = await axios.get(`${API_URL}/api/demo/randy-keller`);
+      const demoData = response.data;
       
-      // Load demo state
-      setAssessmentProgress(demo.assessmentProgress);
-      setPersona(demo.persona);
-      setPersonaCard(demo.personaCard);
-      setQuestionCount(demo.assessmentProgress.questionsCompleted);
-      setConversation(demo.conversationHistory);
+      console.log('Demo data received:', demoData);
+      
+      // Set all the demo state
+      setUserName('Randy Keller');
+      setPersona(demoData.persona);
+      setPersonaCard(demoData.personaCard);
+      setAssessmentProgress({
+        questionsCompleted: demoData.assessmentProgress.questionsCompleted,
+        totalQuestions: demoData.assessmentProgress.totalQuestions,
+        currentSection: demoData.assessmentProgress.currentSection,
+        sections: demoData.assessmentProgress.sections
+      });
+      setQuestionCount(demoData.assessmentProgress.questionsCompleted);
+      
+      // Set conversation history
+      setConversation(demoData.conversationHistory);
       setConversationHistory([
         {
           role: "system",
           content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
         },
-        ...demo.conversationHistory
+        ...demoData.conversationHistory
       ]);
+      
       setHasHandledName(true);
+      setShowWelcome(false);
       
-      // Clear demo data
-      localStorage.removeItem('demoData');
+      // Update the session ID to match demo
+      localStorage.setItem("chatSessionId", demoData.sessionId);
+      setSessionId(demoData.sessionId);
       
-      return;
+      console.log('✓ Demo data loaded successfully for Randy Keller');
+    } catch (error) {
+      console.error('❌ Failed to load demo data:', error);
+      alert(`Failed to load demo data: ${error.message}`);
     }
+  };
+
+  const handleNameSubmit = async (name) => {
+    setUserName(name);
+    setShowWelcome(false);
     
     // Regular flow for non-demo users
     const initialGreeting = {

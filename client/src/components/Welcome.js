@@ -15,16 +15,8 @@ const Welcome = ({ onNameSubmit }) => {
   const handleDemoClick = async () => {
     setIsLoading(true);
     try {
-      // Load Randy Keller demo data
-      const response = await fetch('/api/demo/randy-keller');
-      const demoData = await response.json();
-      
-      // Store demo data in localStorage for the app to pick up
-      localStorage.setItem('demoData', JSON.stringify(demoData));
-      localStorage.setItem('chatSessionId', demoData.sessionId);
-      
-      // Trigger the demo by submitting the demo name
-      onNameSubmit(demoData.userName);
+      // Simply redirect to demo URL - let App.js handle the loading
+      window.location.href = '/?demo=randy';
     } catch (error) {
       console.error('Error loading demo:', error);
       alert('Failed to load demo. Please try again.');
