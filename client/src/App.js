@@ -11,6 +11,9 @@ import Admin from "./components/Admin";
 import Chat from "./components/Chat";
 import Results from "./components/Results";
 import Welcome from "./components/Welcome";
+import PersonaCard from "./components/PersonaCard";
+import PersonaPreview from "./components/PersonaPreview";
+import AssessmentProgress from "./components/AssessmentProgress";
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 export const HamburgerMenu = ({ isOpen, toggleMenu }) => {
@@ -79,6 +82,16 @@ function AppContent() {
   const [maxQuestions] = useState(10);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false);
   const [hasHandledName, setHasHandledName] = useState(false);
+  const [showPersonaCard, setShowPersonaCard] = useState(false);
+  const [personaCard, setPersonaCard] = useState(null);
+  const [persona, setPersona] = useState(null);
+  const [assessmentProgress, setAssessmentProgress] = useState({
+    questionsCompleted: 0,
+    totalQuestions: 10,
+    currentSection: 'introduction',
+    sections: {}
+  });
+  const [isLoadingPersona, setIsLoadingPersona] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -96,8 +109,27 @@ function AppContent() {
       console.log('Updating question count to:', newCount);
       setQuestionCount(newCount);
       
+      // Update assessment progress
+      setAssessmentProgress({
+        questionsCompleted: newCount,
+        totalQuestions: maxQuestions,
+        currentSection: responseData._state.currentSection || 'introduction',
+        sections: responseData._state.sectionsCompleted || {}
+      });
+      
+      // Check for persona availability
+      if (newCount >= 6 && !persona) {
+        await checkForPersona();
+      }
+      
       if (newCount === maxQuestions) {
         console.log('Reached max questions, preparing results...');
+        
+        // Try to enrich persona if we have one
+        if (persona && !personaCard) {
+          await enrichPersona();
+        }
+        
         setAssessmentSummary({
           summaryOfResponses: null,
           careerMatches: null,
@@ -169,6 +201,72 @@ function AppContent() {
           console.error("Error generating summary:", error);
         }
       }
+    }
+  };
+
+  const checkForPersona = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await axios.get(`${API_URL}/api/persona/${sessionId}`);
+      if (response.data) {
+        setPersona(response.data);
+      }
+    } catch (error) {
+      console.log('Persona not yet available:', error.message);
+    }
+  };
+
+  const enrichPersona = async () => {
+    if (!sessionId) return;
+    
+    setIsLoadingPersona(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/persona-card/${sessionId}/enrich`,
+        {
+          userGoals: "Explore career options and find fulfilling work",
+          forceRefresh: false
+        },
+        {
+          headers: {
+            "session-id": sessionId,
+          },
+        }
+      );
+      
+      if (response.data.personaCard) {
+        setPersonaCard(response.data.personaCard);
+      }
+    } catch (error) {
+      console.error('Error enriching persona:', error);
+    } finally {
+      setIsLoadingPersona(false);
+    }
+  };
+
+  const handleViewPersonaCard = async () => {
+    if (personaCard) {
+      setShowPersonaCard(true);
+      return;
+    }
+    
+    // Try to get existing persona card first
+    try {
+      const response = await axios.get(`${API_URL}/api/persona-card/${sessionId}`);
+      if (response.data) {
+        setPersonaCard(response.data);
+        setShowPersonaCard(true);
+        return;
+      }
+    } catch (error) {
+      console.log('No existing persona card, enriching...');
+    }
+    
+    // If no existing card, enrich the persona
+    await enrichPersona();
+    if (personaCard) {
+      setShowPersonaCard(true);
     }
   };
 
@@ -520,20 +618,48 @@ function AppContent() {
           ) : showResults ? (
             <Results summary={assessmentSummary} />
           ) : (
-            <Chat
-              conversation={conversation}
-              loading={loading}
-              input={input}
-              setInput={setInput}
-              handleKeyPress={handleKeyPress}
-              sendMessage={sendMessage}
-              handleOptionSelect={handleOptionSelect}
-              menuRef={menuRef}
-              isMenuOpen={isMenuOpen}
-              setIsMenuOpen={setIsMenuOpen}
-              questionCount={questionCount}
-              maxQuestions={10}
-            />
+            <div className="chat-container">
+              <AssessmentProgress
+                questionsCompleted={assessmentProgress.questionsCompleted}
+                totalQuestions={assessmentProgress.totalQuestions}
+                currentSection={assessmentProgress.currentSection}
+                sections={assessmentProgress.sections}
+                onViewPersona={handleViewPersonaCard}
+                hasPersona={!!persona}
+              />
+              
+              {persona && !showPersonaCard && (
+                <PersonaPreview
+                  persona={persona}
+                  onViewFullCard={handleViewPersonaCard}
+                  isLoading={isLoadingPersona}
+                />
+              )}
+              
+              <Chat
+                conversation={conversation}
+                loading={loading}
+                input={input}
+                setInput={setInput}
+                handleKeyPress={handleKeyPress}
+                sendMessage={sendMessage}
+                handleOptionSelect={handleOptionSelect}
+                menuRef={menuRef}
+                isMenuOpen={isMenuOpen}
+                setIsMenuOpen={setIsMenuOpen}
+                questionCount={questionCount}
+                maxQuestions={10}
+              />
+              
+              {showPersonaCard && (
+                <PersonaCard
+                  sessionId={sessionId}
+                  personaCard={personaCard}
+                  onClose={() => setShowPersonaCard(false)}
+                  onEnrichPersona={enrichPersona}
+                />
+              )}
+            </div>
           )
         }
       />

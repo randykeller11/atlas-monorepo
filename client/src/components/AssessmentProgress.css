@@ -1,0 +1,258 @@
+.assessment-progress {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e1e5f2;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.progress-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.progress-stats {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.progress-fraction {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.progress-percentage {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.progress-bar-container {
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e1e5f2;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.sections-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  transition: all 0.2s;
+}
+
+.section-indicator.active {
+  background: #f8f9ff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.section-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e1e5f2;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.section-indicator.completed .section-dot {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.section-indicator.current .section-dot {
+  background: #667eea;
+  animation: pulse 2s infinite;
+}
+
+.section-indicator.partial .section-dot {
+  background: #ffa726;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(102, 126, 234, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+}
+
+.section-name {
+  flex: 1;
+  font-weight: 500;
+  color: #333;
+}
+
+.section-indicator.active .section-name {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.section-count {
+  background: #e1e5f2;
+  color: #666;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+.section-indicator.completed .section-count {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.section-indicator.current .section-count {
+  background: #667eea;
+  color: white;
+}
+
+.persona-prompt {
+  margin-top: 20px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  text-align: center;
+}
+
+.persona-prompt-content h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+}
+
+.persona-prompt-content p {
+  margin: 0 0 15px 0;
+  opacity: 0.9;
+}
+
+.view-persona-btn {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-persona-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.completion-celebration {
+  margin-top: 20px;
+  background: linear-gradient(135deg, #38ef7d, #11998e);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  text-align: center;
+}
+
+.celebration-content h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+}
+
+.celebration-content p {
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .assessment-progress {
+    padding: 16px;
+    margin: 16px 0;
+  }
+  
+  .progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .progress-stats {
+    align-self: flex-end;
+  }
+  
+  .section-indicator {
+    padding: 10px 0;
+  }
+  
+  .section-indicator.active {
+    padding: 10px 12px;
+  }
+  
+  .section-name {
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for progress entrance */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.assessment-progress {
+  animation: slideInLeft 0.3s ease-out;
+}

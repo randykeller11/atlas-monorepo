@@ -1,0 +1,330 @@
+.persona-card-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.persona-card-container {
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.persona-card {
+  padding: 0;
+}
+
+.persona-card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 12px 12px 0 0;
+}
+
+.archetype-name {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.persona-card-content {
+  padding: 30px;
+}
+
+.persona-section {
+  margin-bottom: 30px;
+}
+
+.persona-section h3 {
+  color: #333;
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+}
+
+.short-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #555;
+}
+
+.elevator-pitch {
+  background: #f8f9ff;
+  border-left: 4px solid #667eea;
+  padding: 20px;
+  border-radius: 8px;
+  font-style: italic;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.strengths-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.strength-tag {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 25px;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.role-card {
+  background: #fff;
+  border: 2px solid #e1e5f2;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.role-card:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.next-steps-list {
+  list-style: none;
+  padding: 0;
+  counter-reset: step-counter;
+}
+
+.next-step {
+  counter-increment: step-counter;
+  background: #f8f9ff;
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  position: relative;
+  padding-left: 50px;
+}
+
+.next-step::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  background: #667eea;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.motivational {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 25px;
+  border-radius: 12px;
+  margin-top: 30px;
+}
+
+.motivational h3 {
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.motivational-insight {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  font-style: italic;
+  text-align: center;
+}
+
+.persona-metadata {
+  background: #f5f7fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.persona-card-actions {
+  padding: 30px;
+  background: #f8f9ff;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border: 1px solid #fcc;
+}
+
+.persona-card-empty {
+  padding: 60px 30px;
+  text-align: center;
+}
+
+.persona-card-empty h2 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.persona-card-empty p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .persona-card-overlay {
+    padding: 10px;
+  }
+  
+  .archetype-name {
+    font-size: 2rem;
+  }
+  
+  .persona-card-content {
+    padding: 20px;
+  }
+  
+  .strengths-grid,
+  .roles-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .persona-metadata {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .persona-card-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+/* Animation for card entrance */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.persona-card-container {
+  animation: slideIn 0.3s ease-out;
+}
