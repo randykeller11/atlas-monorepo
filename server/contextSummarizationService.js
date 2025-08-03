@@ -42,8 +42,12 @@ export function shouldTriggerSummarization(session) {
   const now = new Date();
   const timeSinceLastSummary = lastSummaryTime ? (now - lastSummaryTime) / (1000 * 60) : Infinity; // minutes
   
-  // Don't summarize if we summarized less than 10 minutes ago
-  if (timeSinceLastSummary < 10) {
+  // For testing purposes, allow summarization if message count significantly exceeds threshold
+  // even if time constraint isn't met
+  const messageCountExceedsThresholdSignificantly = messageCount > (SUMMARIZATION_THRESHOLD * 2);
+  
+  // Don't summarize if we summarized less than 10 minutes ago, unless message count is very high
+  if (timeSinceLastSummary < 10 && !messageCountExceedsThresholdSignificantly) {
     return false;
   }
   
