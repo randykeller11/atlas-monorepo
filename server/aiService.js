@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { z } from 'zod';
 import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
+import { shouldTriggerSummarization, performContextSummarization } from './contextSummarizationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -141,37 +142,22 @@ export async function aiRequest(sessionId, userInput, options = {}) {
  * Check if context summarization is needed
  */
 function shouldSummarize(session) {
-  return session.history && session.history.length > SUMMARIZATION_THRESHOLD;
+  return shouldTriggerSummarization(session);
 }
 
 /**
  * Summarize conversation context using templates
  */
 async function summarizeContextWithTemplate(session) {
-  try {
-    const template = await loadPromptTemplate('summaryPrompt');
-    const recentMessages = session.history.slice(-10).map(msg => `${msg.role}: ${msg.content}`).join('\n');
-    
-    const summaryPrompt = interpolateTemplate(template, { recentMessages });
-    
-    const messages = [
-      { role: 'system', content: 'You are a helpful assistant that summarizes conversations.' },
-      { role: 'user', content: summaryPrompt }
-    ];
-    
-    const response = await api.getChatCompletion(messages);
-    
-    if (response?.choices?.[0]?.message?.content) {
-      session.summary = response.choices[0].message.content;
-      session.history = session.history.slice(-6); // Keep recent messages
-      console.log(`✓ Context summarized using template for session ${session.id}`);
-    }
-    
-  } catch (error) {
-    console.error(`Template-based summarization failed:`, error.message);
-    // Fallback to original method
-    await summarizeContext(session);
+  const result = await performContextSummarization(session.id);
+  
+  if (result.summarized) {
+    console.log(`✓ Context summarized: ${result.messagesPruned} messages pruned, ${result.messagesPreserved} preserved`);
+  } else {
+    console.warn(`Context summarization failed: ${result.reason || result.error}`);
   }
+  
+  return result;
 }
 
 /**

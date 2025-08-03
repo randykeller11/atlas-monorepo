@@ -16,6 +16,12 @@ import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessme
 import { aiRequest } from './aiService.js';
 import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
 import { getAvailableTemplates, loadPromptTemplate, updateTemplate, clearTemplateCache } from './promptService.js';
+import { 
+  performContextSummarization, 
+  getSummarizationStats, 
+  forceSummarization,
+  getContextSummarizationHealth 
+} from './contextSummarizationService.js';
 
 const getConversationState = async (sessionId) => {
   return await getSession(sessionId);
@@ -1570,6 +1576,50 @@ app.post('/api/admin/prompts/cache/clear', (req, res) => {
   } catch (error) {
     console.error('Error clearing template cache:', error);
     res.status(500).json({ error: 'Failed to clear template cache' });
+  }
+});
+
+// Summarization endpoints
+app.get('/api/summarization/:sessionId/stats', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const stats = await getSummarizationStats(sessionId);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting summarization stats:', error);
+    res.status(500).json({ error: 'Failed to get summarization stats' });
+  }
+});
+
+app.post('/api/summarization/:sessionId/trigger', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const result = await performContextSummarization(sessionId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error triggering summarization:', error);
+    res.status(500).json({ error: 'Failed to trigger summarization' });
+  }
+});
+
+app.post('/api/summarization/:sessionId/force', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const result = await forceSummarization(sessionId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error forcing summarization:', error);
+    res.status(500).json({ error: 'Failed to force summarization' });
+  }
+});
+
+app.get('/api/summarization/health', (req, res) => {
+  try {
+    const health = getContextSummarizationHealth();
+    res.json(health);
+  } catch (error) {
+    console.error('Error checking summarization health:', error);
+    res.status(500).json({ error: 'Failed to check summarization health' });
   }
 });
 
