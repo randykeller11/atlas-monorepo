@@ -298,36 +298,89 @@ async function buildMessageContext(session, userInput, options) {
 }
 
 /**
- * Build system message with persona and anchors
+ * Build system message with persona, anchors, and assessment state
  */
 async function buildSystemMessage(session, options) {
-  let systemContent = `You are Atlas, a career guidance AI assistant. You help users explore career paths through thoughtful questions and personalized advice.`;
-  
-  // Add persona information if available
-  if (session.persona) {
-    systemContent += `\n\nUser Persona: ${JSON.stringify(session.persona)}`;
+  try {
+    // Import assessment functions
+    const { getNextQuestion } = await import('./assessmentStateMachine.js');
+    
+    // Get current assessment state
+    const nextQuestion = await getNextQuestion(session.id);
+    
+    let systemContent = `You are Atlas, a career guidance AI assistant. You help users explore career paths through thoughtful questions and personalized advice.`;
+    
+    // Add persona information if available
+    if (session.persona) {
+      systemContent += `\n\nUser Persona: ${session.persona.primary.name} (${Math.round(session.persona.primary.confidence * 100)}% confidence)`;
+      systemContent += `\nKey Traits: ${session.persona.primary.traits.join(', ')}`;
+      systemContent += `\nCareer Fit: ${session.persona.primary.careerFit.join(', ')}`;
+    }
+    
+    // Add anchors (key insights) if available
+    if (session.anchors && session.anchors.length > 0) {
+      systemContent += `\n\nKey User Insights: ${session.anchors.join(', ')}`;
+    }
+    
+    // Add assessment state
+    if (!nextQuestion.isComplete) {
+      systemContent += `\n\nAssessment Progress:`;
+      systemContent += `\n- Current Section: ${nextQuestion.section}`;
+      systemContent += `\n- Questions Completed: ${nextQuestion.progress?.questionsCompleted || 0}/${nextQuestion.progress?.totalQuestions || 10}`;
+      systemContent += `\n- Next Question Type: ${nextQuestion.type}`;
+      
+      // Add section-specific guidance
+      const sectionGuidance = getSectionGuidance(nextQuestion.section);
+      if (sectionGuidance) {
+        systemContent += `\n- Section Focus: ${sectionGuidance}`;
+      }
+    } else {
+      systemContent += `\n\nAssessment Status: Complete - Focus on providing career guidance and insights based on the user's responses.`;
+    }
+    
+    // Add response format instructions
+    systemContent += `\n\nResponse Format: Always respond with valid JSON in one of these formats:
+    
+    For text responses:
+    {"type": "text", "content": "Your response with a question"}
+    
+    For multiple choice:
+    {"type": "multiple_choice", "content": "Lead-in text", "question": "Your question?", "options": [{"id": "a", "text": "Option A"}, {"id": "b", "text": "Option B"}]}
+    
+    For ranking:
+    {"type": "ranking", "content": "Lead-in text", "question": "Rank these items:", "items": [{"id": "1", "text": "Item 1"}], "totalRanks": 4}`;
+    
+    // Add any custom instructions from options
+    if (options.systemInstructions) {
+      systemContent += `\n\n${options.systemInstructions}`;
+    }
+    
+    return {
+      role: 'system',
+      content: systemContent
+    };
+    
+  } catch (error) {
+    console.warn('Error building system message:', error.message);
+    // Fallback to basic system message
+    return {
+      role: 'system',
+      content: 'You are Atlas, a career guidance AI assistant. Respond with valid JSON.'
+    };
   }
-  
-  // Add anchors (key insights) if available
-  if (session.anchors && session.anchors.length > 0) {
-    systemContent += `\n\nKey User Insights: ${session.anchors.join(', ')}`;
-  }
-  
-  // Add current assessment state
-  if (session.currentSection) {
-    systemContent += `\n\nCurrent Assessment Section: ${session.currentSection}`;
-    systemContent += `\nQuestions Asked: ${session.totalQuestions}/10`;
-  }
-  
-  // Add any custom instructions from options
-  if (options.systemInstructions) {
-    systemContent += `\n\n${options.systemInstructions}`;
-  }
-  
-  return {
-    role: 'system',
-    content: systemContent
+}
+
+function getSectionGuidance(section) {
+  const guidance = {
+    introduction: 'Welcome the user and begin exploring their background',
+    interestExploration: 'Focus on personal hobbies, academic subjects, and innate curiosities',
+    workStyle: 'Evaluate ideal working environment and communication preferences',
+    technicalAptitude: 'Gauge comfort with coding, design, data, or IT tasks',
+    careerValues: 'Understand motivations and desired work-life balance',
+    summary: 'Provide comprehensive career guidance based on all responses'
   };
+  
+  return guidance[section] || null;
 }
 
 /**
@@ -416,6 +469,85 @@ async function buildCorrectionMessages(originalResponse, validationError, option
       content: `Please reformat your previous response. Error: ${validationError}`
     }];
   }
+}
+
+/**
+ * Enhanced AI request with assessment integration
+ */
+export async function aiRequestWithAssessment(sessionId, userInput, options = {}) {
+  console.log(`\n=== AI Request with Assessment Integration ===`);
+  
+  try {
+    // Get current assessment state
+    const { getNextQuestion, recordResponse } = await import('./assessmentStateMachine.js');
+    const nextQuestion = await getNextQuestion(sessionId);
+    const session = await getSession(sessionId);
+    
+    // Add assessment context to options
+    const enhancedOptions = {
+      ...options,
+      assessmentContext: {
+        currentSection: nextQuestion.section,
+        progress: nextQuestion.progress,
+        isComplete: nextQuestion.isComplete,
+        requiredType: nextQuestion.type
+      },
+      systemInstructions: `${options.systemInstructions || ''}\n\nAssessment Context:
+        - Current section: ${nextQuestion.section}
+        - Progress: ${nextQuestion.progress?.questionsCompleted || 0}/${nextQuestion.progress?.totalQuestions || 10}
+        - Next question should be: ${nextQuestion.type}
+        - Assessment complete: ${nextQuestion.isComplete}
+        
+        ${nextQuestion.isComplete ? 
+          'The assessment is complete. Focus on providing career guidance and insights.' :
+          `Continue the assessment by asking a ${nextQuestion.type} question about ${nextQuestion.section}.`
+        }`
+    };
+    
+    // Make the AI request
+    const response = await aiRequest(sessionId, userInput, enhancedOptions);
+    
+    // If this was a user response to an assessment question, record it
+    if (isUserResponse(userInput) && !nextQuestion.isComplete) {
+      try {
+        const responseData = parseUserResponse(userInput, nextQuestion.type);
+        await recordResponse(sessionId, responseData);
+        console.log(`✓ Recorded assessment response: ${responseData.type}`);
+      } catch (recordError) {
+        console.warn('Failed to record assessment response:', recordError.message);
+      }
+    }
+    
+    return response;
+    
+  } catch (error) {
+    console.error('Error in AI request with assessment:', error);
+    // Fallback to regular AI request
+    return await aiRequest(sessionId, userInput, options);
+  }
+}
+
+// Helper functions
+function isUserResponse(input) {
+  // Detect if this is a user answering a question vs asking a new question
+  const questionIndicators = ['what', 'how', 'why', 'when', 'where', 'tell me', 'explain'];
+  const lowerInput = input.toLowerCase();
+  
+  // If it contains question indicators, it's likely a question
+  if (questionIndicators.some(indicator => lowerInput.includes(indicator))) {
+    return false;
+  }
+  
+  // If it's short and doesn't end with a question mark, likely an answer
+  return input.length < 200 && !input.includes('?');
+}
+
+function parseUserResponse(input, expectedType) {
+  return {
+    type: expectedType,
+    content: input,
+    timestamp: new Date().toISOString()
+  };
 }
 
 /**

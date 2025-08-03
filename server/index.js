@@ -1046,205 +1046,220 @@ app.post("/api/message", async (req, res) => {
   const { message, conversation } = req.body;
   const sessionId = req.headers['session-id'] || uuidv4();
   
-  console.log('\n=== Processing Message ===');
+  console.log('\n=== Processing Message Through New Engine ===');
+  console.log('Session ID:', sessionId);
   console.log('Message:', message);
-  console.log('Conversation:', conversation);
   
   try {
-    const state = await getConversationState(sessionId);
-    
-    // Ensure conversation is an array
-    const conversationArray = Array.isArray(conversation) ? conversation : [];
-    
-    // Add state information to system message
-    const systemMessage = {
-      role: "system",
-      content: `You are Atlas, a career guidance AI. 
-                Current section: ${state.currentSection}
-                Questions asked: ${state.totalQuestions}/10
-                
-                STRICT QUESTION TYPE REQUIREMENTS:
-                - Interest Exploration: 2 multiple choice questions
-                - Work Style: 1 multiple choice, then 1 ranking question
-                - Technical Aptitude: 1 multiple choice, then 1 ranking question
-                - Career Values: 2 multiple choice, then 1 text question
-
-                Current Progress:
-                - Interest Exploration: ${state.sections.interestExploration}/2
-                - Work Style: ${state.sections.workStyle}/2
-                - Technical Aptitude: ${state.sections.technicalAptitude}/2
-                - Career Values: ${state.sections.careerValues}/3
-
-                NEXT QUESTION MUST BE:
-                ${state.currentSection === 'workStyle' && state.sections.workStyle === 1 ? '- RANKING question for work style preferences' : ''}
-                ${state.currentSection === 'technicalAptitude' && state.sections.technicalAptitude === 1 ? '- RANKING question for technical preferences' : ''}
-                ${state.currentSection === 'careerValues' && state.sections.careerValues === 2 ? '- TEXT question about career goals' : ''}
-                ${state.currentSection === 'careerValues' && state.sections.careerValues < 2 ? '- MULTIPLE CHOICE question about career values' : ''}
-                  .join(' or ')}
-                4. Each section MUST have at least one open-ended question
-                5. Follow the required distribution of question types
-
-                Section Requirements:
-                - Each section MUST have at least one open-ended question
-                - Interest Exploration needs ${3 - state.sections.interestExploration} more questions
-                - Work Style needs ${2 - state.sections.workStyle} more questions
-                - Technical Aptitude needs ${2 - state.sections.technicalAptitude} more questions
-                - Career Values needs ${3 - state.sections.careerValues} more questions
-                
-                Current section focus:
-                ${state.currentSection === 'interestExploration' ? '- Focus on personal hobbies, academic subjects, and innate curiosities' : ''}
-                ${state.currentSection === 'workStyle' ? '- Evaluate ideal working environment and communication preferences' : ''}
-                ${state.currentSection === 'technicalAptitude' ? '- Gauge comfort with coding, design, data, or IT tasks' : ''}
-                ${state.currentSection === 'careerValues' ? '- Understand motivations and desired work-life balance' : ''}
-
-                ${!state.hasOpenEndedInSection[state.currentSection] ? 'IMPORTANT: This section still needs an open-ended question' : ''}
-
-                Use this format for responses:
-
-                1. For open-ended questions, respond with JSON:
-                {
-                  "type": "text",
-                  "content": "Your conversational text that MUST include a clear question."
-                }
-
-                2. For multiple choice questions, respond with JSON:
-                {
-                  "type": "multiple_choice",
-                  "content": "Your conversational lead-in",
-                  "question": "Your specific question?",
-                  "options": [
-                    {
-                      "id": "string",
-                      "text": "string"
-                    }
-                  ]
-                }
-
-                3. For ranking questions, respond with JSON:
-                {
-                  "type": "ranking",
-                  "content": "Your conversational lead-in",
-                  "question": "Your specific question about ranking these items?",
-                  "items": [
-                    {
-                      "id": "string",
-                      "text": "string"
-                    }
-                  ],
-                  "totalRanks": number
-                }
-
-                RULES:
-                1. EVERY response MUST include a question
-                2. Use a mix of question types appropriate to the current section
-                3. Keep responses focused and concise
-                4. Ensure questions are clear and specific
-                5. Follow up on previous responses to maintain conversation flow
-
-                Current section focus:
-                - Interest Exploration: Ask about hobbies, interests, and preferences
-                - Work Style: Ask about preferred work environment and habits
-                - Technical Aptitude: Ask about technical experience and comfort level
-                - Career Values: Ask about priorities and goals
-
-                Please respond with JSON.`
-    };
-    
     // Check if this is a results request
     if (message.includes('[GENERATE_RESULTS]')) {
-      const completion = await api.getChatCompletion([
-        {
-          role: "system",
-          content: instructions + ". Please respond with JSON."
-        },
-        ...conversationArray,
-        {
-          role: "user",
-          content: message + ". Please respond with JSON."
-        }
-      ]);
-
-      if (!completion?.choices?.[0]?.message?.content) {
-        throw new Error('Invalid API response format');
-      }
-
-      try {
-        // Parse the response content
-        const parsedContent = JSON.parse(completion.choices[0].message.content);
-        
-        console.log('\n=== Parsed Results Response ===');
-        console.log(JSON.stringify(parsedContent, null, 2));
-
-        // Return the parsed content directly
-        res.json(parsedContent);
-      } catch (parseError) {
-        console.error('Error parsing results response:', parseError);
-        console.error('Raw response:', completion.choices[0].message.content);
-        throw new Error('Invalid JSON in results response');
-      }
-      return;
+      return await handleResultsRequest(req, res, sessionId, message, conversation);
     }
 
-    // Regular message handling
-    const completion = await api.getChatCompletion([
-      systemMessage,
-      ...conversationArray,
-      {
-        role: "user",
-        content: message + ". Please respond with JSON."
+    // Use the new AI service pipeline
+    const aiResponse = await aiRequest(sessionId, message, {
+      conversation: Array.isArray(conversation) ? conversation : [],
+      systemInstructions: 'Focus on career guidance and assessment progression.'
+    });
+
+    // Get current session state for response metadata
+    const session = await getSession(sessionId);
+    
+    // Update persona and anchors based on response
+    await updatePersonaFromResponse(sessionId, message, aiResponse.content);
+    
+    // Record assessment response if applicable
+    await recordAssessmentResponse(sessionId, aiResponse.content);
+    
+    // Add state information to response
+    const responseWithState = {
+      ...aiResponse,
+      _state: {
+        questionsAsked: session.totalQuestions || 0,
+        currentSection: session.currentSection || 'introduction',
+        sectionsCompleted: session.sections || {},
+        questionTypes: session.questionTypes || {},
+        persona: session.persona,
+        anchors: session.anchors || []
       }
-    ]);
-
-    if (!completion?.choices?.[0]?.message?.content) {
-      throw new Error('Invalid API response format');
-    }
-
-    try {
-      // Get raw response content
-      const rawResponse = completion.choices[0].message.content;
-      
-      // Sanitize and validate response
-      const state = getConversationState(sessionId);
-      const sanitizedResponse = await sanitizeResponse(
-        rawResponse,
-        state,
-        api,
-        [systemMessage, ...conversationArray, { role: "user", content: message }],
-        0
-      );
-      
-      // Update conversation state
-      await updateConversationState(sessionId, sanitizedResponse);
-      
-      // Add state to response
-      const responseWithState = {
-        ...sanitizedResponse,
-        _state: {
-          questionsAsked: state.totalQuestions,
-          currentSection: state.currentSection,
-          sectionsCompleted: state.sections,
-          questionTypes: state.questionTypes
-        }
-      };
-      
-      console.log('\n=== Final Response to Client ===');
-      console.log(JSON.stringify(responseWithState, null, 2));
-      
-      res.json(responseWithState);
-    } catch (parseError) {
-      console.error('Error parsing response:', parseError);
-      console.error('Raw response:', completion.choices[0].message.content);
-      throw new Error('Invalid JSON in response');
-    }
+    };
+    
+    console.log('\n=== Response from New Engine ===');
+    console.log('Content length:', aiResponse.content.length);
+    console.log('Tokens used:', aiResponse.tokensUsed);
+    console.log('Session updated:', aiResponse.sessionUpdated);
+    
+    res.json(responseWithState);
 
   } catch (error) {
-    console.error('Error processing message:', error);
+    console.error('Error in new message pipeline:', error);
     res.status(500).json({
+      content: "I apologize, but I'm having trouble processing your request. Could you please try again?",
       type: "text",
-      content: "I apologize, but I'm having trouble processing your request. Could you please try again?"
+      error: true
     });
   }
 });
+
+// Helper function for results requests
+async function handleResultsRequest(req, res, sessionId, message, conversation) {
+  console.log('=== Handling Results Request ===');
+  
+  try {
+    // Generate career summary using the resume service
+    const careerSummary = await generateCareerSummary(sessionId);
+    
+    // Get persona recommendations
+    const session = await getSession(sessionId);
+    const personaRecommendations = session.persona ? getPersonaRecommendations(session.persona) : [];
+    
+    // Use AI service to generate comprehensive results
+    const resultsResponse = await aiRequest(sessionId, message, {
+      conversation: Array.isArray(conversation) ? conversation : [],
+      systemInstructions: `Generate comprehensive career assessment results. Include:
+        1. Summary of user responses across all sections
+        2. Career matches with percentages
+        3. Salary information
+        4. Education path recommendations
+        5. Portfolio suggestions
+        6. Networking advice
+        7. Career roadmap
+        
+        Format as structured JSON with all required sections.`,
+      expectedSchema: 'json_object'
+    });
+
+    // Parse and validate the results
+    let parsedResults;
+    try {
+      parsedResults = JSON.parse(resultsResponse.content);
+    } catch (parseError) {
+      console.error('Error parsing results JSON:', parseError);
+      // Fallback to structured results
+      parsedResults = {
+        summaryOfResponses: careerSummary,
+        careerMatches: personaRecommendations,
+        salaryInformation: [],
+        educationPath: { courses: [], certifications: [] },
+        portfolioRecommendations: [],
+        networkingSuggestions: [],
+        careerRoadmap: {
+          highSchool: "Complete foundational courses",
+          college: "Pursue relevant degree",
+          earlyCareer: "Gain practical experience",
+          longTerm: "Advance to leadership roles"
+        }
+      };
+    }
+    
+    console.log('Results generated successfully');
+    res.json(parsedResults);
+    
+  } catch (error) {
+    console.error('Error generating results:', error);
+    res.status(500).json({
+      error: "Failed to generate assessment results",
+      message: error.message
+    });
+  }
+}
+
+// Helper function to update persona from AI response
+async function updatePersonaFromResponse(sessionId, userMessage, aiResponse) {
+  try {
+    // Extract potential anchors from user message
+    const anchors = extractAnchorsFromMessage(userMessage);
+    
+    if (anchors.length > 0) {
+      await updatePersonaAnchors(sessionId, anchors);
+      console.log(`Updated anchors for session ${sessionId}:`, anchors);
+    }
+    
+    // Trigger persona analysis if we have enough conversation
+    const session = await getSession(sessionId);
+    if (session.history && session.history.length >= 6 && !session.persona) {
+      const persona = await analyzePersona(sessionId);
+      console.log(`Generated persona for session ${sessionId}:`, persona?.primary?.name);
+    }
+    
+  } catch (error) {
+    console.warn('Error updating persona:', error.message);
+    // Don't throw - persona updates shouldn't break the main flow
+  }
+}
+
+// Helper function to extract anchors from user messages
+function extractAnchorsFromMessage(message) {
+  const anchors = [];
+  const lowerMessage = message.toLowerCase();
+  
+  // Interest indicators
+  const interests = ['love', 'enjoy', 'passionate', 'interested', 'fascinated', 'excited'];
+  interests.forEach(interest => {
+    if (lowerMessage.includes(interest)) {
+      // Extract context around the interest word
+      const words = message.split(' ');
+      const interestIndex = words.findIndex(word => word.toLowerCase().includes(interest));
+      if (interestIndex !== -1 && interestIndex < words.length - 1) {
+        const context = words.slice(Math.max(0, interestIndex - 1), interestIndex + 3).join(' ');
+        anchors.push(context.replace(/[^\w\s]/g, '').trim());
+      }
+    }
+  });
+  
+  // Skill indicators
+  const skills = ['good at', 'skilled', 'experienced', 'proficient', 'expert', 'talented'];
+  skills.forEach(skill => {
+    if (lowerMessage.includes(skill)) {
+      const words = message.split(' ');
+      const skillIndex = words.findIndex(word => word.toLowerCase().includes(skill.split(' ')[0]));
+      if (skillIndex !== -1) {
+        const context = words.slice(skillIndex, skillIndex + 4).join(' ');
+        anchors.push(context.replace(/[^\w\s]/g, '').trim());
+      }
+    }
+  });
+  
+  return anchors.filter(anchor => anchor.length > 3 && anchor.length < 50);
+}
+
+// Helper function to record assessment responses
+async function recordAssessmentResponse(sessionId, aiResponse) {
+  try {
+    // Parse the AI response to determine if it contains a structured question
+    const parsedResponse = parseAIResponse(aiResponse);
+    
+    if (parsedResponse.type && ['multiple_choice', 'ranking', 'text'].includes(parsedResponse.type)) {
+      // This is a question, so we don't record it as a response
+      // The response will be recorded when the user answers
+      return;
+    }
+    
+    // If this is a user response to a previous question, it would have been
+    // handled by the assessment state machine in the aiRequest pipeline
+    
+  } catch (error) {
+    console.warn('Error recording assessment response:', error.message);
+    // Don't throw - assessment recording shouldn't break the main flow
+  }
+}
+
+// Helper function to parse AI response format
+function parseAIResponse(response) {
+  try {
+    // Try to parse as JSON first
+    return JSON.parse(response);
+  } catch {
+    // If not JSON, analyze the text structure
+    if (response.includes('?') && (response.includes('A)') || response.includes('1.'))) {
+      return { type: 'multiple_choice', content: response };
+    }
+    if (response.includes('rank') && response.includes('order')) {
+      return { type: 'ranking', content: response };
+    }
+    return { type: 'text', content: response };
+  }
+}
 
 
 // Update the /api/update-instructions endpoint
