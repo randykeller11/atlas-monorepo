@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SUPABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  sessions  Session[]
+  assessments Assessment[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  userId    String?
+  
+  // Session data
+  history   Json     @default("[]")
+  summary   String?
+  persona   Json?
+  anchors   Json     @default("{}")
+  
+  // Assessment state
+  assessmentState Json @default("{}")
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+  
+  user User? @relation(fields: [userId], references: [id])
+  
+  @@map("sessions")
+}
+
+model Assessment {
+  id       String @id @default(cuid())
+  userId   String
+  sessionId String
+  
+  // Assessment results
+  responses Json   @default("{}")
+  persona   Json?
+  results   Json?
+  
+  // Metadata
+  completed Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("assessments")
+}
+
+model PromptTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  version     String
+  content     String
+  schema      Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("prompt_templates")
+}
