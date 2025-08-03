@@ -5,8 +5,8 @@ import {
   resetAssessment,
   validateAssessmentState,
   getAssessmentConfig,
-} from "./assessmentStateMachine.js";
-import { getSession, saveSession, deleteSession } from "./sessionService.js";
+} from "../assessmentStateMachine.js";
+import { getSession, saveSession, deleteSession } from "../sessionService.js";
 import dotenv from "dotenv";
 
 // Load environment variables
