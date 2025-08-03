@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { sanitizeResponse } from './sanitizer.js';
 import { getSession, saveSession, deleteSession, checkRedisHealth } from './sessionService.js';
 import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from './personaService.js';
-import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentEngine.js';
+import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentStateMachine.js';
 import { aiRequest } from './aiService.js';
 import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
 import { getAvailableTemplates, loadPromptTemplate, updateTemplate, clearTemplateCache } from './promptService.js';
