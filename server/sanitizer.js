@@ -1,6 +1,9 @@
+// Legacy sanitizer - now replaced by aiService.js validation pipeline
+// This file is maintained for backward compatibility only
+
 import { z } from 'zod';
 
-// Response schemas for validation
+// Legacy response schemas - now handled by aiService.js
 const MultipleChoiceSchema = z.object({
   type: z.literal('multiple_choice'),
   content: z.string(),
@@ -27,13 +30,13 @@ const TextSchema = z.object({
   content: z.string()
 });
 
-// Response sanitization and validation layer
+// Legacy validation - now handled by aiService.js with Zod schemas
 const validateResponseFormat = (response) => {
-  // Basic structure check
+  console.warn('Using legacy validateResponseFormat - consider migrating to aiService.js validation');
+  
   if (!response || typeof response !== 'object') return false;
   if (!response.type || !response.content) return false;
 
-  // Validate based on type
   switch (response.type) {
     case 'multiple_choice':
       return (
@@ -61,8 +64,10 @@ const validateResponseFormat = (response) => {
   }
 };
 
+// Legacy type enforcement - now handled by assessmentStateMachine.js
 const enforceQuestionType = (state) => {
-  // Determine required question type based on section and progress
+  console.warn('Using legacy enforceQuestionType - consider using assessmentStateMachine.js');
+  
   if (state.currentSection === 'workStyle' && state.sections.workStyle === 1) {
     return 'ranking';
   }
@@ -75,10 +80,13 @@ const enforceQuestionType = (state) => {
   if (state.currentSection === 'careerValues' && state.sections.careerValues < 2) {
     return 'multiple_choice';
   }
-  return 'multiple_choice'; // Default to multiple choice
+  return 'multiple_choice';
 };
 
+// Legacy fallback responses
 const createFallbackResponse = (type) => {
+  console.warn('Using legacy createFallbackResponse - consider using aiService.js fallbacks');
+  
   switch (type) {
     case 'multiple_choice':
       return {
@@ -114,25 +122,23 @@ const createFallbackResponse = (type) => {
   }
 };
 
+// Legacy main sanitization function - now replaced by aiService.js pipeline
 const sanitizeResponse = async (response, state, api, messages, retryCount = 0) => {
+  console.warn('Using legacy sanitizeResponse - the new aiService.js handles validation automatically');
+  
   try {
-    // Parse response if it's a string
     const parsed = typeof response === 'string' ? JSON.parse(response) : response;
     
-    // Validate format
     if (validateResponseFormat(parsed)) {
-      // Check if type matches required type
       const requiredType = enforceQuestionType(state);
       if (parsed.type === requiredType) {
         return parsed;
       }
     }
 
-    // Retry with explicit type requirement if attempts remain
     if (retryCount < 2) {
-      console.log(`Retrying response generation (attempt ${retryCount + 1})`);
+      console.log(`Legacy retry attempt ${retryCount + 1}`);
       
-      // Add explicit type requirement to system message
       const updatedMessages = messages.map(msg => 
         msg.role === 'system' ? {
           ...msg,
@@ -140,7 +146,6 @@ const sanitizeResponse = async (response, state, api, messages, retryCount = 0) 
         } : msg
       );
 
-      // Retry API call
       const retryResponse = await api.getChatCompletion(updatedMessages);
       return sanitizeResponse(
         retryResponse?.choices?.[0]?.message?.content,
@@ -151,18 +156,21 @@ const sanitizeResponse = async (response, state, api, messages, retryCount = 0) 
       );
     }
 
-    // Return type-appropriate fallback if all retries fail
-    console.log('All retries failed, using fallback response');
+    console.log('Legacy fallback response used');
     return createFallbackResponse(enforceQuestionType(state));
 
   } catch (error) {
-    console.error('Sanitization error:', error);
+    console.error('Legacy sanitization error:', error);
     return createFallbackResponse(enforceQuestionType(state));
   }
 };
 
+// Export legacy functions for backward compatibility
 export {
   sanitizeResponse,
   validateResponseFormat,
-  enforceQuestionType
+  enforceQuestionType,
+  MultipleChoiceSchema,
+  RankingSchema,
+  TextSchema
 };
