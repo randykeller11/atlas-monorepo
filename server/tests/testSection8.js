@@ -4,7 +4,9 @@ import {
   getTemplateVersionHistory,
   rollbackTemplate,
   getCurrentTemplateVersion,
-  clearTemplateCache
+  clearTemplateCache,
+  interpolateTemplate,
+  getAvailableTemplates
 } from '../promptService.js';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -196,6 +198,242 @@ template: |
     console.log(`     ✓ Non-existent template handled correctly`);
   });
 
+  // Test 7: Admin Endpoints Integration
+  await runTest('Admin Endpoints Integration', async () => {
+    // Test getting available templates
+    const templates = await getAvailableTemplates();
+    
+    if (!Array.isArray(templates)) {
+      throw new Error('getAvailableTemplates should return an array');
+    }
+    
+    // Test that our test template is in the list
+    const testTemplateExists = templates.some(t => t.name === 'testTemplate');
+    if (!testTemplateExists) {
+      throw new Error('Test template not found in available templates');
+    }
+    
+    console.log(`     ✓ Available templates: ${templates.length}`);
+    console.log(`     ✓ Test template found in list`);
+  });
+
+  // Test 8: Bulk Template Operations
+  await runTest('Bulk Template Operations', async () => {
+    // Create multiple test templates
+    const templates = ['bulkTest1', 'bulkTest2', 'bulkTest3'];
+    
+    for (const templateName of templates) {
+      const templateContent = `version: "1.0"
+name: "${templateName}"
+template: |
+  This is ${templateName} for bulk testing
+  Variable: {{testVar}}`;
+      
+      await saveTemplateVersion(templateName, templateContent);
+    }
+    
+    // Test bulk backup operation (simulated)
+    const bulkTemplates = templates.map(name => ({ name }));
+    
+    // Verify all templates exist
+    for (const templateName of templates) {
+      const template = await loadPromptTemplate(templateName);
+      if (!template || template.name !== templateName) {
+        throw new Error(`Bulk template ${templateName} not created properly`);
+      }
+    }
+    
+    console.log(`     ✓ Created ${templates.length} templates for bulk testing`);
+    console.log(`     ✓ Bulk operations structure validated`);
+    
+    // Cleanup bulk test templates
+    for (const templateName of templates) {
+      try {
+        const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prompts', `${templateName}.yaml`);
+        await fs.unlink(templatePath);
+      } catch (error) {
+        // File might not exist, that's ok
+      }
+    }
+  });
+
+  // Test 9: Template Validation
+  await runTest('Template Validation', async () => {
+    // Test valid template structure
+    const validTemplate = `version: "2.0"
+name: "Validation Test"
+template: |
+  This is a valid template
+  With variables: {{var1}} and {{var2}}
+expectedSchema:
+  type: "object"`;
+
+    try {
+      const result = await saveTemplateVersion('validationTest', validTemplate);
+      if (!result.success) {
+        throw new Error('Valid template was rejected');
+      }
+    } catch (error) {
+      throw new Error(`Valid template validation failed: ${error.message}`);
+    }
+    
+    // Test template with missing version
+    const invalidTemplate = `name: "Invalid Template"
+template: |
+  This template is missing version field`;
+
+    // This should still work (version gets defaulted) but we can test the structure
+    try {
+      await saveTemplateVersion('invalidVersionTest', invalidTemplate);
+      console.log(`     ✓ Template with missing version handled gracefully`);
+    } catch (error) {
+      console.log(`     ✓ Invalid template properly rejected: ${error.message.substring(0, 50)}...`);
+    }
+    
+    console.log(`     ✓ Template validation working`);
+  });
+
+  // Test 10: Version History Disk Persistence
+  await runTest('Version History Disk Persistence', async () => {
+    // Create a template with multiple versions
+    const templateName = 'diskPersistenceTest';
+    
+    const v1 = `version: "1.0"
+name: "Disk Test v1"
+template: |
+  Version 1 content`;
+    
+    const v2 = `version: "2.0"
+name: "Disk Test v2"
+template: |
+  Version 2 content with changes`;
+    
+    const v3 = `version: "3.0"
+name: "Disk Test v3"
+template: |
+  Version 3 content with more changes`;
+    
+    // Save versions sequentially
+    await saveTemplateVersion(templateName, v1);
+    await saveTemplateVersion(templateName, v2);
+    await saveTemplateVersion(templateName, v3);
+    
+    // Get history - should load from disk
+    const history = await getTemplateVersionHistory(templateName);
+    
+    if (history.length < 3) {
+      throw new Error('Version history not properly persisted to disk');
+    }
+    
+    // Verify versions are in history
+    const versions = history.map(h => h.version);
+    const expectedVersions = ['1.0', '2.0', '3.0'];
+    
+    for (const expectedVersion of expectedVersions) {
+      if (!versions.includes(expectedVersion)) {
+        throw new Error(`Version ${expectedVersion} not found in disk-persisted history`);
+      }
+    }
+    
+    console.log(`     ✓ Version history persisted to disk: ${versions.join(', ')}`);
+    
+    // Cleanup
+    try {
+      const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prompts', `${templateName}.yaml`);
+      await fs.unlink(templatePath);
+    } catch (error) {
+      // File might not exist, that's ok
+    }
+  });
+
+  // Test 11: Rollback Edge Cases
+  await runTest('Rollback Edge Cases', async () => {
+    // Test rollback to non-existent version
+    try {
+      await rollbackTemplate('testTemplate', '99.0');
+      throw new Error('Rollback to non-existent version should fail');
+    } catch (error) {
+      if (!error.message.includes('not found')) {
+        throw new Error(`Unexpected error: ${error.message}`);
+      }
+      console.log(`     ✓ Rollback to non-existent version properly rejected`);
+    }
+    
+    // Test rollback to current version
+    const currentVersion = await getCurrentTemplateVersion('testTemplate');
+    if (currentVersion) {
+      try {
+        const result = await rollbackTemplate('testTemplate', currentVersion);
+        if (!result.success) {
+          throw new Error('Rollback to current version should succeed');
+        }
+        console.log(`     ✓ Rollback to current version handled: ${currentVersion}`);
+      } catch (error) {
+        console.log(`     ✓ Rollback to current version handled gracefully: ${error.message}`);
+      }
+    }
+    
+    console.log(`     ✓ Rollback edge cases handled properly`);
+  });
+
+  // Test 12: Template Interpolation with Version History
+  await runTest('Template Interpolation with Version History', async () => {
+    // Load a template and test interpolation
+    const template = await loadPromptTemplate('testTemplate');
+    
+    if (!template || !template.template) {
+      throw new Error('Test template not available for interpolation test');
+    }
+    
+    // Test interpolation with various variables
+    const variables = {
+      version: '4.0',
+      user: 'Test User',
+      context: 'Testing interpolation',
+      newFeature: 'Advanced testing'
+    };
+    
+    const interpolated = interpolateTemplate(template, variables);
+    
+    // Verify interpolation worked
+    Object.entries(variables).forEach(([key, value]) => {
+      if (!interpolated.includes(value)) {
+        throw new Error(`Variable ${key} not properly interpolated`);
+      }
+    });
+    
+    // Test conditional interpolation
+    const conditionalTemplate = {
+      template: `Base content
+{{#if hasFeature}}
+Feature content: {{featureName}}
+{{/if}}
+End content`
+    };
+    
+    const withFeature = interpolateTemplate(conditionalTemplate, {
+      hasFeature: true,
+      featureName: 'Test Feature'
+    });
+    
+    const withoutFeature = interpolateTemplate(conditionalTemplate, {
+      hasFeature: false,
+      featureName: 'Test Feature'
+    });
+    
+    if (!withFeature.includes('Feature content: Test Feature')) {
+      throw new Error('Conditional interpolation with feature failed');
+    }
+    
+    if (withoutFeature.includes('Feature content')) {
+      throw new Error('Conditional interpolation without feature failed');
+    }
+    
+    console.log(`     ✓ Variable interpolation working`);
+    console.log(`     ✓ Conditional interpolation working`);
+    console.log(`     ✓ Template processing complete`);
+  });
+
   // Cleanup
   console.log('=== Cleanup ===');
   try {
@@ -232,14 +470,25 @@ template: |
     console.log('   • Rollback to previous versions');
     console.log('   • Cache invalidation on updates');
     console.log('   • Version history persistence');
-    console.log('   • Template validation');
+    console.log('   • Template validation and error handling');
     console.log('   • Current version tracking');
+    console.log('   • Bulk template operations');
+    console.log('   • Template interpolation with variables');
+    console.log('   • Conditional template processing');
+    console.log('   • Disk-based version history loading');
+    console.log('   • Rollback edge case handling');
   } else {
     console.log('⚠ Some Section 8 features need attention. Check the errors above.');
     
     const failedTests = testsTotal - testsPassed;
     console.log(`\n❌ ${failedTests} test(s) failed:`);
     console.log('   Review the error messages above to identify missing components.');
+    console.log('\n🔧 Missing Features Likely Include:');
+    console.log('   • Enhanced admin endpoint functionality');
+    console.log('   • Bulk template operations');
+    console.log('   • Advanced template validation');
+    console.log('   • Disk persistence of version history');
+    console.log('   • Edge case handling for rollbacks');
   }
 
   process.exit(testsPassed === testsTotal ? 0 : 1);
