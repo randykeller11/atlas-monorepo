@@ -1,4 +1,5 @@
 import { getSession, saveSession } from './sessionService.js';
+import logger, { logPersonaAnalysis, logError } from './logger.js';
 
 // Persona archetypes and their characteristics
 const PERSONA_ARCHETYPES = {
@@ -46,13 +47,13 @@ const PERSONA_ARCHETYPES = {
  * @returns {Object} Persona analysis result
  */
 export async function analyzePersona(sessionId) {
-  console.log(`\n=== Analyzing persona for session ${sessionId} ===`);
+  logger.info('Starting persona analysis', { sessionId, type: 'persona_analysis_start' });
   
   try {
     const session = await getSession(sessionId);
     
     if (!session.history || session.history.length === 0) {
-      console.log('No conversation history available for persona analysis');
+      logger.warn('No conversation history for persona analysis', { sessionId });
       return null;
     }
     
@@ -80,12 +81,17 @@ export async function analyzePersona(sessionId) {
     
     await saveSession(sessionId, session);
     
-    console.log(`✓ Persona analysis completed: ${primaryPersona.name}`);
+    logPersonaAnalysis(sessionId, {
+      primaryPersona: primaryPersona.name,
+      confidence: primaryPersona.confidence,
+      responseCount: userResponses.length,
+      success: true
+    });
     
     return session.persona;
     
   } catch (error) {
-    console.error(`❌ Persona analysis failed for session ${sessionId}:`, error.message);
+    logError(sessionId, error, { function: 'analyzePersona' });
     throw error;
   }
 }

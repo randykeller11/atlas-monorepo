@@ -3,6 +3,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import logger, { logTemplateUsage } from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,7 +24,9 @@ export async function loadPromptTemplate(templateName) {
   try {
     // Check cache first
     if (templateCache.has(templateName)) {
-      return templateCache.get(templateName);
+      const template = templateCache.get(templateName);
+      logTemplateUsage(null, templateName, template.version);
+      return template;
     }
     
     const templatePath = path.join(PROMPTS_DIR, `${templateName}.yaml`);
@@ -33,11 +36,20 @@ export async function loadPromptTemplate(templateName) {
     // Cache the template
     templateCache.set(templateName, template);
     
-    console.log(`✓ Loaded prompt template: ${templateName} v${template.version}`);
+    logger.info('Template loaded', {
+      templateName,
+      version: template.version,
+      type: 'template_load'
+    });
+    
     return template;
     
   } catch (error) {
-    console.error(`❌ Failed to load prompt template ${templateName}:`, error.message);
+    logger.error('Failed to load template', {
+      templateName,
+      error: error.message,
+      type: 'template_error'
+    });
     throw new Error(`Template ${templateName} not found or invalid`);
   }
 }

@@ -10,7 +10,7 @@ import { users } from "./users.js";
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeResponse } from './sanitizer.js';
-import { getSession, saveSession, deleteSession, checkRedisHealth } from './sessionService.js';
+import { getSession, saveSession, deleteSession, checkRedisHealth, getSessionStats } from './sessionService.js';
 import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from './personaService.js';
 import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentStateMachine.js';
 import { aiRequest } from './aiService.js';
@@ -32,6 +32,12 @@ import {
   getContextSummarizationHealth 
 } from './contextSummarizationService.js';
 import yaml from 'js-yaml';
+import logger, { 
+  logSessionActivity, 
+  logError,
+  logAIRequest,
+  logAIResponse 
+} from './logger.js';
 
 const getConversationState = async (sessionId) => {
   return await getSession(sessionId);
@@ -1843,6 +1849,155 @@ app.get('/api/summarization/health', (req, res) => {
   } catch (error) {
     console.error('Error checking summarization health:', error);
     res.status(500).json({ error: 'Failed to check summarization health' });
+  }
+});
+
+// Debug endpoints (admin-only)
+app.get('/api/admin/debug/session/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+    
+    // Get session statistics
+    const stats = await getSessionStats(sessionId);
+    
+    // Get summarization stats
+    const summarizationStats = await getSummarizationStats(sessionId);
+    
+    // Get assessment progress
+    const nextQuestion = await getNextQuestion(sessionId);
+    
+    const debugInfo = {
+      sessionId,
+      timestamp: new Date().toISOString(),
+      session: {
+        id: session.id,
+        createdAt: session.createdAt,
+        lastActivity: session.lastActivity,
+        currentSection: session.currentSection,
+        totalQuestions: session.totalQuestions,
+        sections: session.sections,
+        questionTypes: session.questionTypes
+      },
+      persona: session.persona,
+      anchors: session.anchors || [],
+      history: {
+        messageCount: session.history ? session.history.length : 0,
+        recentMessages: session.history ? session.history.slice(-5) : []
+      },
+      summary: {
+        hasSummary: !!session.summary,
+        summaryLength: session.summary ? session.summary.length : 0,
+        lastSummarizedAt: session.lastSummarizedAt
+      },
+      assessment: {
+        currentState: nextQuestion.section,
+        nextQuestionType: nextQuestion.type,
+        isComplete: nextQuestion.isComplete,
+        progress: nextQuestion.progress
+      },
+      sessionStats: stats,
+      summarizationStats: summarizationStats
+    };
+    
+    logSessionActivity(sessionId, 'debug_access', { 
+      endpoint: '/api/admin/debug/session',
+      dataSize: JSON.stringify(debugInfo).length 
+    });
+    
+    res.json(debugInfo);
+  } catch (error) {
+    logError(req.params.sessionId, error, { endpoint: '/api/admin/debug/session' });
+    res.status(500).json({ error: 'Failed to get debug information' });
+  }
+});
+
+// Get recent logs for a session
+app.get('/api/admin/debug/logs/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { limit = 50 } = req.query;
+    
+    // This is a placeholder - in a real implementation, you'd query your log storage
+    // For now, we'll return a sample structure
+    const logs = {
+      sessionId,
+      timestamp: new Date().toISOString(),
+      message: 'Log querying not implemented - logs are written to files',
+      logFiles: [
+        '../logs/combined.log',
+        '../logs/error.log'
+      ],
+      recentActivity: {
+        aiRequests: 'Check combined.log for ai_request entries',
+        templateUsage: 'Check combined.log for template_usage entries',
+        errors: 'Check error.log for error entries'
+      }
+    };
+    
+    res.json(logs);
+  } catch (error) {
+    logError(req.params.sessionId, error, { endpoint: '/api/admin/debug/logs' });
+    res.status(500).json({ error: 'Failed to get logs' });
+  }
+});
+
+// Get system health and logging status
+app.get('/api/admin/debug/health', async (req, res) => {
+  try {
+    const health = {
+      timestamp: new Date().toISOString(),
+      logging: {
+        level: process.env.LOG_LEVEL || 'info',
+        transports: ['console', 'file'],
+        logDirectory: '../logs'
+      },
+      services: {
+        redis: await checkRedisHealth(),
+        openrouter: !!process.env.OPENROUTER_API_KEY,
+        templates: (await getAvailableTemplates()).length,
+        assessmentEngine: 'active'
+      },
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        port: process.env.PORT,
+        summarizationEnabled: process.env.SUMMARIZATION_ENABLED !== 'false'
+      }
+    };
+    
+    logger.info('Health check accessed', { 
+      type: 'health_check',
+      services: Object.keys(health.services)
+    });
+    
+    res.json(health);
+  } catch (error) {
+    logError(null, error, { endpoint: '/api/admin/debug/health' });
+    res.status(500).json({ error: 'Failed to get health information' });
+  }
+});
+
+// Get token usage statistics
+app.get('/api/admin/debug/tokens', async (req, res) => {
+  try {
+    // This would typically query your log storage for token usage
+    // For now, return a placeholder structure
+    const tokenStats = {
+      timestamp: new Date().toISOString(),
+      message: 'Token statistics would be aggregated from logs',
+      structure: {
+        totalTokensUsed: 'Sum of tokensUsed from ai_response logs',
+        averageTokensPerRequest: 'Average tokensUsed from ai_response logs',
+        requestCount: 'Count of ai_request logs',
+        costEstimate: 'Based on OpenRouter pricing'
+      },
+      note: 'Implement log aggregation to get real statistics'
+    };
+    
+    res.json(tokenStats);
+  } catch (error) {
+    logError(null, error, { endpoint: '/api/admin/debug/tokens' });
+    res.status(500).json({ error: 'Failed to get token statistics' });
   }
 });
 

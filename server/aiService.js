@@ -7,6 +7,12 @@ import { dirname } from 'path';
 import { z } from 'zod';
 import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
 import { shouldTriggerSummarization, performContextSummarization } from './contextSummarizationService.js';
+import logger, { 
+  logAIRequest, 
+  logAIResponse, 
+  logTemplateUsage, 
+  logError 
+} from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -60,7 +66,13 @@ const RankingResponseSchema = z.object({
  * @returns {Object} AI response with metadata
  */
 export async function aiRequest(sessionId, userInput, options = {}) {
-  console.log(`\n=== Enhanced AI Request for session ${sessionId} ===`);
+  const startTime = Date.now();
+  
+  logAIRequest(sessionId, {
+    userInputLength: userInput.length,
+    options: Object.keys(options),
+    timestamp: new Date().toISOString()
+  });
   
   try {
     // Load session
@@ -68,7 +80,7 @@ export async function aiRequest(sessionId, userInput, options = {}) {
     
     // Check if summarization is needed
     if (shouldSummarize(session)) {
-      console.log('Triggering context summarization...');
+      logger.info('Triggering context summarization', { sessionId });
       await summarizeContextWithTemplate(session);
     }
     
@@ -81,8 +93,11 @@ export async function aiRequest(sessionId, userInput, options = {}) {
     const maxAttempts = 3;
     
     while (attempts < maxAttempts) {
+      const attemptStartTime = Date.now();
+      
       try {
         response = await api.getChatCompletion(messages);
+        const latency = Date.now() - attemptStartTime;
         
         if (!response?.choices?.[0]?.message?.content) {
           throw new Error('Invalid API response format');
@@ -103,7 +118,18 @@ export async function aiRequest(sessionId, userInput, options = {}) {
           // Save updated session
           await saveSession(sessionId, session);
           
-          console.log(`✓ AI request completed for session ${sessionId} (attempt ${attempts + 1})`);
+          const totalLatency = Date.now() - startTime;
+          
+          logAIResponse(sessionId, {
+            success: true,
+            attempts: attempts + 1,
+            tokensUsed: response.usage?.total_tokens || 0,
+            model: response.model || 'unknown',
+            latency: latency,
+            totalLatency: totalLatency,
+            validationPassed: true,
+            responseLength: aiResponse.length
+          });
           
           return {
             content: aiResponse,
@@ -113,7 +139,11 @@ export async function aiRequest(sessionId, userInput, options = {}) {
             validationPassed: true
           };
         } else {
-          console.warn(`Response validation failed (attempt ${attempts + 1}):`, validationResult.error);
+          logger.warn('Response validation failed', {
+            sessionId,
+            attempt: attempts + 1,
+            validationError: validationResult.error
+          });
           
           if (attempts < maxAttempts - 1) {
             // Try correction with template
@@ -123,7 +153,15 @@ export async function aiRequest(sessionId, userInput, options = {}) {
         }
         
       } catch (error) {
-        console.error(`API call failed (attempt ${attempts + 1}):`, error.message);
+        const latency = Date.now() - attemptStartTime;
+        
+        logger.error('API call failed', {
+          sessionId,
+          attempt: attempts + 1,
+          latency: latency,
+          error: error.message
+        });
+        
         if (attempts === maxAttempts - 1) throw error;
       }
       
@@ -133,7 +171,14 @@ export async function aiRequest(sessionId, userInput, options = {}) {
     throw new Error(`Failed to get valid response after ${maxAttempts} attempts`);
     
   } catch (error) {
-    console.error(`❌ Enhanced AI request failed for session ${sessionId}:`, error.message);
+    const totalLatency = Date.now() - startTime;
+    
+    logError(sessionId, error, {
+      function: 'aiRequest',
+      userInputLength: userInput.length,
+      totalLatency: totalLatency
+    });
+    
     throw error;
   }
 }
