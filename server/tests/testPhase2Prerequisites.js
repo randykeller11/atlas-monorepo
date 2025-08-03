@@ -93,14 +93,31 @@ async function testPhase2Prerequisites() {
     }
     
     if (!process.env.SUPABASE_URL.includes('supabase.co')) {
-      throw new Error('SUPABASE_URL appears invalid');
+      throw new Error('SUPABASE_URL appears invalid - should contain supabase.co');
     }
     
     if (process.env.SUPABASE_SERVICE_ROLE_KEY.length < 50) {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY appears invalid');
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY appears invalid - should be longer than 50 characters');
     }
     
-    console.log('     ✓ Supabase configured');
+    // Test that we can import the Supabase client
+    try {
+      const { supabase, checkSupabaseHealth } = await import('../supabaseClient.js');
+      
+      if (!supabase) {
+        return { warning: 'Supabase client not initialized - check environment variables' };
+      }
+      
+      // Test basic connectivity
+      const health = await checkSupabaseHealth();
+      if (!health.healthy) {
+        return { warning: `Supabase connection issue: ${health.reason}` };
+      }
+      
+      console.log('     ✓ Supabase configured and healthy');
+    } catch (error) {
+      return { warning: `Supabase client error: ${error.message}` };
+    }
   });
 
   // Test 5: File System Permissions (Required for templates/storage)
