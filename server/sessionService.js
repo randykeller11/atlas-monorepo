@@ -194,32 +194,56 @@ export function getRedisStatus() {
 export async function getSessionStats(sessionId) {
   const key = `${NAMESPACE}session:${sessionId}`;
   
-  if (!redis) {
-    return {
-      exists: memoryStore.has(sessionId),
-      ttl: -1,
-      inMemory: memoryStore.has(sessionId),
-      redisHealthy: false
-    };
-  }
-  
   try {
-    const ttl = await redis.ttl(key);
-    const exists = await redis.exists(key);
+    const session = await getSession(sessionId);
     
-    return {
-      exists: exists === 1,
-      ttl: ttl,
-      inMemory: memoryStore.has(sessionId),
-      redisHealthy: redisHealthy
+    const baseStats = {
+      sessionId,
+      exists: true,
+      createdAt: session.createdAt,
+      lastActivity: session.lastActivity,
+      messageCount: session.history ? session.history.length : 0,
+      hasPersona: !!session.persona,
+      anchorCount: session.anchors ? session.anchors.length : 0,
+      currentSection: session.currentSection,
+      totalQuestions: session.totalQuestions,
+      hasSummary: !!session.summary,
+      inMemory: memoryStore.has(sessionId)
     };
+    
+    if (!redis) {
+      return {
+        ...baseStats,
+        ttl: -1,
+        redisHealthy: false
+      };
+    }
+    
+    try {
+      const ttl = await redis.ttl(key);
+      const exists = await redis.exists(key);
+      
+      return {
+        ...baseStats,
+        exists: exists === 1,
+        ttl: ttl,
+        redisHealthy: redisHealthy
+      };
+    } catch (error) {
+      return {
+        ...baseStats,
+        ttl: -1,
+        redisHealthy: false,
+        error: error.message
+      };
+    }
   } catch (error) {
     return {
-      exists: memoryStore.has(sessionId),
-      ttl: -1,
+      sessionId,
+      exists: false,
+      error: error.message,
       inMemory: memoryStore.has(sessionId),
-      redisHealthy: false,
-      error: error.message
+      redisHealthy: redisHealthy
     };
   }
 }
