@@ -108,14 +108,21 @@ async function testPhase2Prerequisites() {
         return { warning: 'Supabase client not initialized - check environment variables' };
       }
       
-      // Test basic connectivity
+      // Test basic connectivity and table existence
       const health = await checkSupabaseHealth();
       if (!health.healthy) {
+        if (health.reason.includes('relation "persona_cards" does not exist')) {
+          return { warning: 'Supabase connected but persona_cards table missing - run server/migrations/001_create_persona_cards.sql' };
+        }
         return { warning: `Supabase connection issue: ${health.reason}` };
       }
       
       console.log('     ✓ Supabase configured and healthy');
+      console.log('     ✓ persona_cards table exists');
     } catch (error) {
+      if (error.message.includes('relation "persona_cards" does not exist')) {
+        return { warning: 'Supabase connected but persona_cards table missing - run server/migrations/001_create_persona_cards.sql' };
+      }
       return { warning: `Supabase client error: ${error.message}` };
     }
   });
