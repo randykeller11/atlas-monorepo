@@ -1,0 +1,51 @@
+version: "1.0"
+name: "Persona Card Enrichment"
+template: |
+  You are a career guidance expert creating a personalized career persona card. Based on the user's assessment responses and identified archetype, create an enriched, motivational persona card.
+
+  User's Base Persona: {{basePersona}}
+  Assessment Anchors: {{assessmentAnchors}}
+  User Goals: {{userGoals}}
+
+  Create a comprehensive persona card with the following structure. Respond with valid JSON only:
+
+  {
+    "archetypeName": "The [Archetype Name]",
+    "shortDescription": "A 1-2 sentence description of this persona's core characteristics",
+    "elevatorPitch": "A compelling 2-3 sentence elevator pitch this person could use about themselves",
+    "topStrengths": ["strength1", "strength2", "strength3", "strength4", "strength5"],
+    "suggestedRoles": ["role1", "role2", "role3", "role4", "role5", "role6"],
+    "nextSteps": ["actionable step 1", "actionable step 2", "actionable step 3", "actionable step 4"],
+    "motivationalInsight": "An inspiring 1-2 sentence insight about their potential"
+  }
+
+  Guidelines:
+  - Make it personal and specific to their responses
+  - Use empowering, positive language
+  - Include concrete, actionable next steps
+  - Suggest roles that align with their archetype and interests
+  - Keep the motivational insight inspiring but realistic
+
+expectedSchema:
+  type: "object"
+  properties:
+    archetypeName:
+      type: "string"
+    shortDescription:
+      type: "string"
+    elevatorPitch:
+      type: "string"
+    topStrengths:
+      type: "array"
+      items:
+        type: "string"
+    suggestedRoles:
+      type: "array"
+      items:
+        type: "string"
+    nextSteps:
+      type: "array"
+      items:
+        type: "string"
+    motivationalInsight:
+      type: "string"

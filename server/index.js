@@ -15,6 +15,7 @@ import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from 
 import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentStateMachine.js';
 import { aiRequest } from './aiService.js';
 import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
+import { enrichPersona, getEnrichedPersona } from './personaEnrichmentService.js';
 import { 
   getAvailableTemplates, 
   loadPromptTemplate, 
@@ -1543,6 +1544,49 @@ app.get('/api/career-summary/:sessionId', async (req, res) => {
   } catch (error) {
     console.error('Error generating career summary:', error);
     res.status(500).json({ error: 'Failed to generate career summary' });
+  }
+});
+
+// Persona card endpoints
+app.get('/api/persona-card/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const enrichedPersona = await getEnrichedPersona(sessionId);
+    
+    if (!enrichedPersona) {
+      return res.status(404).json({ 
+        error: 'No enriched persona found',
+        message: 'Complete the assessment and persona analysis first'
+      });
+    }
+    
+    res.json(enrichedPersona);
+  } catch (error) {
+    console.error('Error getting persona card:', error);
+    res.status(500).json({ error: 'Failed to get persona card' });
+  }
+});
+
+app.post('/api/persona-card/:sessionId/enrich', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { userGoals, forceRefresh } = req.body;
+    
+    const enrichedPersona = await enrichPersona(sessionId, {
+      userGoals,
+      forceRefresh
+    });
+    
+    res.json({
+      message: 'Persona enriched successfully',
+      personaCard: enrichedPersona
+    });
+  } catch (error) {
+    console.error('Error enriching persona:', error);
+    res.status(500).json({ 
+      error: 'Failed to enrich persona',
+      message: error.message
+    });
   }
 });
 
