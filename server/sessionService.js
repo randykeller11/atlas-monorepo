@@ -5,19 +5,28 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Initialize Redis client with TLS support for Heroku
-const redis = new Redis(process.env.REDIS_URL, {
-  tls: process.env.NODE_ENV === 'production' ? {} : { rejectUnauthorized: false },
-  retryDelayOnFailover: 100,
-  maxRetriesPerRequest: 3,
-  lazyConnect: true,
-});
+let redis = null;
+let redisHealthy = false;
+
+// Only initialize Redis if REDIS_URL is provided
+if (process.env.REDIS_URL) {
+  redis = new Redis(process.env.REDIS_URL, {
+    tls: process.env.NODE_ENV === 'production' ? {} : { rejectUnauthorized: false },
+    retryDelayOnFailover: 100,
+    maxRetriesPerRequest: 1, // Reduce retries for faster fallback
+    lazyConnect: true,
+    connectTimeout: 2000, // 2 second timeout
+    commandTimeout: 1000, // 1 second command timeout
+  });
+} else {
+  console.log('⚠ No REDIS_URL configured, using memory-only session storage');
+}
 
 const NAMESPACE = process.env.SESSION_NAMESPACE || (process.env.NODE_ENV === 'development' ? 'dev:' : '');
 const SESSION_TTL = parseInt(process.env.SESSION_TTL) || (7 * 24 * 60 * 60); // 7 days default
 
 // Fallback in-memory store for development resilience
 const memoryStore = new Map();
-let redisHealthy = false;
 
 function createEmptySession() {
   return {
@@ -56,6 +65,17 @@ function createEmptySession() {
 export async function getSession(sessionId) {
   const key = `${NAMESPACE}session:${sessionId}`;
   
+  // If no Redis configured, use memory only
+  if (!redis) {
+    if (!memoryStore.has(sessionId)) {
+      const newSession = createEmptySession();
+      newSession.id = sessionId;
+      memoryStore.set(sessionId, newSession);
+      return newSession;
+    }
+    return memoryStore.get(sessionId);
+  }
+  
   try {
     const raw = await redis.get(key);
     if (!raw) {
@@ -73,6 +93,7 @@ export async function getSession(sessionId) {
     const ttl = await redis.ttl(key);
     console.log(`Session hit for ${sessionId}, TTL: ${ttl}s`);
     
+    redisHealthy = true;
     return session;
   } catch (error) {
     console.warn(`Redis error for session ${sessionId}, falling back to memory:`, error.message);
@@ -101,6 +122,15 @@ export async function saveSession(sessionId, sessionObj) {
   
   const payload = JSON.stringify(sessionObj);
   
+  // Always save to memory as backup
+  memoryStore.set(sessionId, sessionObj);
+  
+  // If no Redis configured, only use memory
+  if (!redis) {
+    console.log(`Session saved to memory for ${sessionId}`);
+    return;
+  }
+  
   try {
     await redis.set(key, payload, 'EX', SESSION_TTL);
     console.log(`Session saved for ${sessionId}, TTL: ${SESSION_TTL}s`);
@@ -108,12 +138,21 @@ export async function saveSession(sessionId, sessionObj) {
   } catch (error) {
     console.warn(`Redis error saving session ${sessionId}, using memory fallback:`, error.message);
     redisHealthy = false;
-    memoryStore.set(sessionId, sessionObj);
+    // Memory save already done above
   }
 }
 
 export async function deleteSession(sessionId) {
   const key = `${NAMESPACE}session:${sessionId}`;
+  
+  // Always remove from memory
+  memoryStore.delete(sessionId);
+  
+  // If no Redis configured, we're done
+  if (!redis) {
+    console.log(`Session deleted from memory for ${sessionId}`);
+    return;
+  }
   
   try {
     await redis.del(key);
@@ -121,13 +160,14 @@ export async function deleteSession(sessionId) {
   } catch (error) {
     console.warn(`Redis error deleting session ${sessionId}:`, error.message);
   }
-  
-  // Also remove from memory fallback
-  memoryStore.delete(sessionId);
 }
 
 // Health check function
 export async function checkRedisHealth() {
+  if (!redis) {
+    return false; // No Redis configured
+  }
+  
   try {
     const result = await redis.ping();
     redisHealthy = result === 'PONG';
@@ -153,6 +193,15 @@ export function getRedisStatus() {
 // Get session statistics
 export async function getSessionStats(sessionId) {
   const key = `${NAMESPACE}session:${sessionId}`;
+  
+  if (!redis) {
+    return {
+      exists: memoryStore.has(sessionId),
+      ttl: -1,
+      inMemory: memoryStore.has(sessionId),
+      redisHealthy: false
+    };
+  }
   
   try {
     const ttl = await redis.ttl(key);
@@ -219,49 +268,55 @@ export function migrateMemorySession(sessionId, memoryState) {
   return session;
 }
 
-// Redis connection event handlers
-redis.on('connect', () => {
-  console.log('✓ Redis connected successfully');
-  redisHealthy = true;
-});
+// Redis connection event handlers (only if Redis is configured)
+if (redis) {
+  redis.on('connect', () => {
+    console.log('✓ Redis connected successfully');
+    redisHealthy = true;
+  });
 
-redis.on('ready', () => {
-  console.log('✓ Redis ready for commands');
-  redisHealthy = true;
-});
+  redis.on('ready', () => {
+    console.log('✓ Redis ready for commands');
+    redisHealthy = true;
+  });
 
-redis.on('error', (error) => {
-  console.warn('⚠ Redis connection error:', error.message);
-  redisHealthy = false;
-});
+  redis.on('error', (error) => {
+    console.warn('⚠ Redis connection error:', error.message);
+    redisHealthy = false;
+  });
 
-redis.on('close', () => {
-  console.warn('⚠ Redis connection closed');
-  redisHealthy = false;
-});
+  redis.on('close', () => {
+    console.warn('⚠ Redis connection closed');
+    redisHealthy = false;
+  });
 
-redis.on('reconnecting', () => {
-  console.log('🔄 Redis reconnecting...');
-});
+  redis.on('reconnecting', () => {
+    console.log('🔄 Redis reconnecting...');
+  });
+}
 
 // Graceful shutdown handlers
 process.on('SIGTERM', async () => {
   console.log('Shutting down gracefully...');
-  try {
-    await redis.quit();
-    console.log('✓ Redis connection closed');
-  } catch (error) {
-    console.error('Error closing Redis connection:', error.message);
+  if (redis) {
+    try {
+      await redis.quit();
+      console.log('✓ Redis connection closed');
+    } catch (error) {
+      console.error('Error closing Redis connection:', error.message);
+    }
   }
 });
 
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
-  try {
-    await redis.quit();
-    console.log('✓ Redis connection closed');
-  } catch (error) {
-    console.error('Error closing Redis connection:', error.message);
+  if (redis) {
+    try {
+      await redis.quit();
+      console.log('✓ Redis connection closed');
+    } catch (error) {
+      console.error('Error closing Redis connection:', error.message);
+    }
   }
   process.exit(0);
 });
