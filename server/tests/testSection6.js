@@ -5,8 +5,8 @@ import {
   resetAssessment,
   validateAssessmentState,
   getAssessmentConfig,
-} from "../assessmentStateMachine.js";
-import { getSession, saveSession, deleteSession } from "../sessionService.js";
+} from "./assessmentStateMachine.js";
+import { getSession, saveSession, deleteSession } from "./sessionService.js";
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -34,6 +34,45 @@ async function testSection6Implementation() {
       console.error(`     Stack: ${error.stack}\n`);
     }
   };
+
+  // Test 0: State Machine Configuration Validation
+  await runTest('State Machine Configuration Validation', async () => {
+    // Verify the machine configuration matches Section 6 requirements
+    const config = getAssessmentConfig();
+    
+    if (config.totalQuestions !== 10) {
+      throw new Error(`Expected 10 total questions, got ${config.totalQuestions}`);
+    }
+    
+    // Verify section configuration
+    const expectedSections = {
+      introduction: { min: 1, max: 1, types: ['text'] },
+      interestExploration: { min: 2, max: 2, types: ['multiple_choice'] },
+      workStyle: { min: 2, max: 2, types: ['multiple_choice', 'ranking'] },
+      technicalAptitude: { min: 2, max: 2, types: ['multiple_choice', 'ranking'] },
+      careerValues: { min: 3, max: 3, types: ['multiple_choice', 'text'] }
+    };
+    
+    Object.entries(expectedSections).forEach(([sectionName, expectedConfig]) => {
+      const actualConfig = config.sections[sectionName];
+      if (!actualConfig) {
+        throw new Error(`Missing section configuration: ${sectionName}`);
+      }
+      
+      if (actualConfig.max !== expectedConfig.max) {
+        throw new Error(`Section ${sectionName} max mismatch: expected ${expectedConfig.max}, got ${actualConfig.max}`);
+      }
+    });
+    
+    // Verify total questions add up correctly
+    const totalSectionQuestions = Object.values(config.sections).reduce((sum, section) => sum + section.max, 0);
+    if (totalSectionQuestions !== config.totalQuestions) {
+      throw new Error(`Section totals (${totalSectionQuestions}) don't match total questions (${config.totalQuestions})`);
+    }
+    
+    console.log(`     ✓ Configuration valid: ${config.totalQuestions} total questions`);
+    console.log(`     ✓ All ${Object.keys(config.sections).length} sections properly configured`);
+  });
 
   // Test 1: State Machine Initialization
   await runTest("State Machine Initialization", async () => {
@@ -156,6 +195,50 @@ async function testSection6Implementation() {
     console.log(`     ✓ Question type enforcement working`);
   });
 
+  // Test 3.5: Dynamic Question Type Resolution
+  await runTest('Dynamic Question Type Resolution', async () => {
+    await resetAssessment(testSessionId);
+    
+    // Move through states to test dynamic type resolution
+    await recordResponse(testSessionId, { type: 'text', content: 'Introduction' });
+    await recordResponse(testSessionId, { type: 'multiple_choice', content: 'Interest 1' });
+    await recordResponse(testSessionId, { type: 'multiple_choice', content: 'Interest 2' });
+    
+    // Now in workStyle - first question should be multiple_choice
+    let nextQuestion = await getNextQuestion(testSessionId);
+    if (nextQuestion.type !== 'multiple_choice') {
+      throw new Error(`Work style first question should be 'multiple_choice', got '${nextQuestion.type}'`);
+    }
+    
+    // Answer first work style question
+    await recordResponse(testSessionId, { type: 'multiple_choice', content: 'Work style MC' });
+    
+    // Second work style question should be ranking (dynamic resolution)
+    nextQuestion = await getNextQuestion(testSessionId);
+    if (nextQuestion.type !== 'ranking') {
+      throw new Error(`Work style second question should be 'ranking', got '${nextQuestion.type}'`);
+    }
+    
+    // Move to technical aptitude
+    await recordResponse(testSessionId, { type: 'ranking', content: 'Work style ranking' });
+    
+    // First technical question should be multiple_choice
+    nextQuestion = await getNextQuestion(testSessionId);
+    if (nextQuestion.type !== 'multiple_choice') {
+      throw new Error(`Technical first question should be 'multiple_choice', got '${nextQuestion.type}'`);
+    }
+    
+    await recordResponse(testSessionId, { type: 'multiple_choice', content: 'Technical MC' });
+    
+    // Second technical question should be ranking
+    nextQuestion = await getNextQuestion(testSessionId);
+    if (nextQuestion.type !== 'ranking') {
+      throw new Error(`Technical second question should be 'ranking', got '${nextQuestion.type}'`);
+    }
+    
+    console.log(`     ✓ Dynamic question type resolution working correctly`);
+  });
+
   // Test 4: Guards and Conditions
   await runTest("Guards and Conditions", async () => {
     await resetAssessment(testSessionId);
@@ -198,6 +281,83 @@ async function testSection6Implementation() {
     console.log(`     ✓ Guards configured and working`);
   });
 
+  // Test 4.5: Comprehensive Guard Logic Testing
+  await runTest('Comprehensive Guard Logic Testing', async () => {
+    await resetAssessment(testSessionId);
+    
+    const service = await assessmentStateMachineService.getMachine(testSessionId);
+    const guards = service.machine.options.guards;
+    
+    // Test all guard functions with different contexts
+    const testContexts = [
+      // Initial state
+      { sections: { introduction: 0, interestExploration: 0, workStyle: 0, technicalAptitude: 0, careerValues: 0 } },
+      // After introduction
+      { sections: { introduction: 1, interestExploration: 0, workStyle: 0, technicalAptitude: 0, careerValues: 0 } },
+      // After interest exploration
+      { sections: { introduction: 1, interestExploration: 2, workStyle: 0, technicalAptitude: 0, careerValues: 0 } },
+      // After work style
+      { sections: { introduction: 1, interestExploration: 2, workStyle: 2, technicalAptitude: 0, careerValues: 0 } },
+      // After technical aptitude
+      { sections: { introduction: 1, interestExploration: 2, workStyle: 2, technicalAptitude: 2, careerValues: 0 } },
+      // Complete
+      { sections: { introduction: 1, interestExploration: 2, workStyle: 2, technicalAptitude: 2, careerValues: 3 } }
+    ];
+    
+    // Test introduction completion guard
+    if (guards.isIntroductionComplete(testContexts[0])) {
+      throw new Error('Introduction should not be complete initially');
+    }
+    if (!guards.isIntroductionComplete(testContexts[1])) {
+      throw new Error('Introduction should be complete after 1 question');
+    }
+    
+    // Test interest exploration completion guard
+    if (guards.isInterestExplorationComplete(testContexts[1])) {
+      throw new Error('Interest exploration should not be complete after 0 questions');
+    }
+    if (!guards.isInterestExplorationComplete(testContexts[2])) {
+      throw new Error('Interest exploration should be complete after 2 questions');
+    }
+    
+    // Test work style completion guard
+    if (guards.isWorkStyleComplete(testContexts[2])) {
+      throw new Error('Work style should not be complete after 0 questions');
+    }
+    if (!guards.isWorkStyleComplete(testContexts[3])) {
+      throw new Error('Work style should be complete after 2 questions');
+    }
+    
+    // Test technical aptitude completion guard
+    if (guards.isTechnicalAptitudeComplete(testContexts[3])) {
+      throw new Error('Technical aptitude should not be complete after 0 questions');
+    }
+    if (!guards.isTechnicalAptitudeComplete(testContexts[4])) {
+      throw new Error('Technical aptitude should be complete after 2 questions');
+    }
+    
+    // Test career values completion guard
+    if (guards.isCareerValuesComplete(testContexts[4])) {
+      throw new Error('Career values should not be complete after 0 questions');
+    }
+    if (!guards.isCareerValuesComplete(testContexts[5])) {
+      throw new Error('Career values should be complete after 3 questions');
+    }
+    
+    // Test assessment completion guard
+    const completeContext = { totalQuestions: 10 };
+    const incompleteContext = { totalQuestions: 5 };
+    
+    if (!guards.isAssessmentComplete(completeContext)) {
+      throw new Error('Assessment should be complete after 10 questions');
+    }
+    if (guards.isAssessmentComplete(incompleteContext)) {
+      throw new Error('Assessment should not be complete after 5 questions');
+    }
+    
+    console.log(`     ✓ All guard functions working correctly`);
+  });
+
   // Test 5: Actions and Side Effects
   await runTest("Actions and Side Effects", async () => {
     await resetAssessment(testSessionId);
@@ -236,6 +396,56 @@ async function testSection6Implementation() {
     }
 
     console.log(`     ✓ Actions executing correctly`);
+  });
+
+  // Test 5.5: Action Context Mutations
+  await runTest('Action Context Mutations', async () => {
+    await resetAssessment(testSessionId);
+    
+    const service = await assessmentStateMachineService.getMachine(testSessionId);
+    const initialContext = { ...service.state.context };
+    
+    // Test recordResponse action
+    await recordResponse(testSessionId, { type: 'text', content: 'Test response' });
+    
+    const updatedService = await assessmentStateMachineService.getMachine(testSessionId);
+    const updatedContext = updatedService.state.context;
+    
+    // Verify recordResponse action effects
+    if (updatedContext.totalQuestions !== initialContext.totalQuestions + 1) {
+      throw new Error('recordResponse action did not increment totalQuestions correctly');
+    }
+    
+    if (updatedContext.lastQuestionType !== 'text') {
+      throw new Error('recordResponse action did not set lastQuestionType correctly');
+    }
+    
+    // Verify incrementCounters action effects
+    if (updatedContext.sections.introduction !== initialContext.sections.introduction + 1) {
+      throw new Error('incrementCounters action did not update section count');
+    }
+    
+    if (updatedContext.questionTypes.text !== initialContext.questionTypes.text + 1) {
+      throw new Error('incrementCounters action did not update question type count');
+    }
+    
+    if (!updatedContext.hasOpenEndedInSection.introduction) {
+      throw new Error('incrementCounters action did not update hasOpenEndedInSection for text question');
+    }
+    
+    // Test with multiple choice question
+    await recordResponse(testSessionId, { type: 'multiple_choice', content: 'Test MC' });
+    
+    const mcService = await assessmentStateMachineService.getMachine(testSessionId);
+    const mcContext = mcService.state.context;
+    
+    if (mcContext.questionTypes.multiple_choice !== 1) {
+      throw new Error('Multiple choice question type not tracked correctly');
+    }
+    
+    console.log(`     ✓ Action context mutations working correctly`);
+    console.log(`     ✓ Question types: ${JSON.stringify(mcContext.questionTypes)}`);
+    console.log(`     ✓ Sections: ${JSON.stringify(mcContext.sections)}`);
   });
 
   // Test 6: State Persistence
@@ -368,6 +578,62 @@ async function testSection6Implementation() {
         validation.context.questionTypes
       )}`
     );
+  });
+
+  // Test 8.5: Edge Case Validation
+  await runTest('Edge Case Validation', async () => {
+    // Test validation with corrupted state
+    const corruptedSessionId = testSessionId + '-corrupted';
+    const session = await getSession(corruptedSessionId);
+    
+    // Create intentionally invalid state
+    session.machineState = {
+      value: 'introduction',
+      context: {
+        totalQuestions: 15, // Exceeds maximum
+        sections: {
+          introduction: 5, // Exceeds section maximum
+          interestExploration: 0,
+          workStyle: 0,
+          technicalAptitude: 0,
+          careerValues: 0
+        },
+        questionTypes: {
+          multiple_choice: 10, // Doesn't match total
+          ranking: 0,
+          text: 0
+        }
+      }
+    };
+    
+    await saveSession(corruptedSessionId, session);
+    
+    const validation = await assessmentStateMachineService.validateState(corruptedSessionId);
+    
+    if (validation.valid) {
+      throw new Error('Validation should fail for corrupted state');
+    }
+    
+    if (validation.errors.length === 0) {
+      throw new Error('Validation should return error messages');
+    }
+    
+    // Check for specific error types
+    const hasExceedsMaxError = validation.errors.some(err => err.includes('exceed'));
+    const hasMismatchError = validation.errors.some(err => err.includes('do not match'));
+    
+    if (!hasExceedsMaxError) {
+      throw new Error('Validation should detect exceeded maximums');
+    }
+    
+    if (!hasMismatchError) {
+      throw new Error('Validation should detect count mismatches');
+    }
+    
+    await deleteSession(corruptedSessionId);
+    
+    console.log(`     ✓ Edge case validation working`);
+    console.log(`     ✓ Detected ${validation.errors.length} validation errors`);
   });
 
   // Test 9: Error Handling
