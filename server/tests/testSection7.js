@@ -4,9 +4,12 @@ import { analyzePersona, updatePersonaAnchors } from '../personaService.js';
 import { getNextQuestion, recordResponse, resetAssessment } from '../assessmentStateMachine.js';
 import { loadPromptTemplate, interpolateTemplate } from '../promptService.js';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the correct location
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 // Determine if we're running in mock mode
 const MOCK_MODE = !process.env.OPENROUTER_API_KEY;

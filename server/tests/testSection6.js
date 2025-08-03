@@ -8,9 +8,12 @@ import {
 } from "../assessmentStateMachine.js";
 import { getSession, saveSession, deleteSession } from "../sessionService.js";
 import dotenv from "dotenv";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the correct location
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 async function testSection6Implementation() {
   console.log(
