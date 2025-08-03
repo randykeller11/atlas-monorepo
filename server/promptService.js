@@ -122,3 +122,180 @@ export async function updateTemplate(templateName, templateContent) {
     throw error;
   }
 }
+
+/**
+ * Save template with version history
+ */
+export async function saveTemplateVersion(templateName, templateContent, metadata = {}) {
+  try {
+    // Ensure version history directory exists
+    await fs.mkdir(VERSION_HISTORY_DIR, { recursive: true });
+    
+    // Parse the new template to get version
+    const newTemplate = yaml.load(templateContent);
+    const version = newTemplate.version || '1.0';
+    
+    // Load current template to backup
+    let currentTemplate = null;
+    try {
+      currentTemplate = await loadPromptTemplate(templateName);
+    } catch (error) {
+      // Template doesn't exist yet, that's ok
+    }
+    
+    // Save current version to history if it exists
+    if (currentTemplate) {
+      const timestamp = new Date().toISOString();
+      const historyFileName = `${templateName}_v${currentTemplate.version}_${timestamp.replace(/[:.]/g, '-')}.yaml`;
+      const historyPath = path.join(VERSION_HISTORY_DIR, historyFileName);
+      
+      await fs.writeFile(historyPath, yaml.dump(currentTemplate), 'utf8');
+      
+      // Update version history tracking
+      if (!versionHistory.has(templateName)) {
+        versionHistory.set(templateName, []);
+      }
+      versionHistory.get(templateName).push({
+        version: currentTemplate.version,
+        timestamp,
+        fileName: historyFileName,
+        metadata: { ...metadata, action: 'backup' }
+      });
+    }
+    
+    // Save new template
+    await updateTemplate(templateName, templateContent);
+    
+    // Record new version in history
+    if (!versionHistory.has(templateName)) {
+      versionHistory.set(templateName, []);
+    }
+    versionHistory.get(templateName).push({
+      version,
+      timestamp: new Date().toISOString(),
+      fileName: `${templateName}.yaml`,
+      metadata: { ...metadata, action: 'update' }
+    });
+    
+    console.log(`✓ Template ${templateName} updated to version ${version}`);
+    return { version, templateName, success: true };
+    
+  } catch (error) {
+    console.error(`❌ Failed to save template version ${templateName}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get version history for a template
+ */
+export async function getTemplateVersionHistory(templateName) {
+  try {
+    // Load from file system if not in memory
+    if (!versionHistory.has(templateName)) {
+      await loadVersionHistoryFromDisk(templateName);
+    }
+    
+    return versionHistory.get(templateName) || [];
+  } catch (error) {
+    console.error(`Failed to get version history for ${templateName}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Rollback template to previous version
+ */
+export async function rollbackTemplate(templateName, targetVersion) {
+  try {
+    const history = await getTemplateVersionHistory(templateName);
+    const targetEntry = history.find(entry => entry.version === targetVersion);
+    
+    if (!targetEntry) {
+      throw new Error(`Version ${targetVersion} not found for template ${templateName}`);
+    }
+    
+    // Load the target version
+    let templateContent;
+    if (targetEntry.fileName.startsWith(templateName + '_v')) {
+      // It's a historical version
+      const historyPath = path.join(VERSION_HISTORY_DIR, targetEntry.fileName);
+      templateContent = await fs.readFile(historyPath, 'utf8');
+    } else {
+      // It's the current version
+      const currentTemplate = await loadPromptTemplate(templateName);
+      templateContent = yaml.dump(currentTemplate);
+    }
+    
+    // Save as new version with rollback metadata
+    await saveTemplateVersion(templateName, templateContent, {
+      action: 'rollback',
+      rolledBackFrom: await getCurrentTemplateVersion(templateName),
+      rolledBackTo: targetVersion
+    });
+    
+    console.log(`✓ Rolled back ${templateName} to version ${targetVersion}`);
+    return { success: true, rolledBackTo: targetVersion };
+    
+  } catch (error) {
+    console.error(`❌ Failed to rollback template ${templateName}:`, error.message);
+    throw error;
+  }
+}
+
+/**
+ * Get current template version
+ */
+export async function getCurrentTemplateVersion(templateName) {
+  try {
+    const template = await loadPromptTemplate(templateName);
+    return template.version || '1.0';
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Load version history from disk
+ */
+async function loadVersionHistoryFromDisk(templateName) {
+  try {
+    const files = await fs.readdir(VERSION_HISTORY_DIR);
+    const templateFiles = files.filter(file => file.startsWith(templateName + '_v'));
+    
+    const history = [];
+    for (const file of templateFiles) {
+      const filePath = path.join(VERSION_HISTORY_DIR, file);
+      const stats = await fs.stat(filePath);
+      
+      // Extract version from filename
+      const versionMatch = file.match(/_v([^_]+)_/);
+      if (versionMatch) {
+        history.push({
+          version: versionMatch[1],
+          timestamp: stats.mtime.toISOString(),
+          fileName: file,
+          metadata: { action: 'historical' }
+        });
+      }
+    }
+    
+    // Add current version
+    const currentVersion = await getCurrentTemplateVersion(templateName);
+    if (currentVersion) {
+      history.push({
+        version: currentVersion,
+        timestamp: new Date().toISOString(),
+        fileName: `${templateName}.yaml`,
+        metadata: { action: 'current' }
+      });
+    }
+    
+    // Sort by timestamp
+    history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    versionHistory.set(templateName, history);
+  } catch (error) {
+    console.warn(`Could not load version history for ${templateName}:`, error.message);
+  }
+}

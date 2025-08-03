@@ -31,6 +31,7 @@ import {
   forceSummarization,
   getContextSummarizationHealth 
 } from './contextSummarizationService.js';
+import yaml from 'js-yaml';
 
 const getConversationState = async (sessionId) => {
   return await getSession(sessionId);
