@@ -378,8 +378,20 @@ template: |
 
   // Test 12: Template Interpolation with Version History
   await runTest('Template Interpolation with Version History', async () => {
-    // Load a template and test interpolation
-    const template = await loadPromptTemplate('testTemplate');
+    // Create a test template with known variables for interpolation testing
+    const testTemplateContent = `version: "4.0"
+name: "Interpolation Test Template"
+template: |
+  This is a test template with version {{version}}
+  User: {{user}}
+  Context: {{context}}
+  New feature: {{newFeature}}`;
+
+    // Save the test template
+    await saveTemplateVersion('interpolationTest', testTemplateContent);
+    
+    // Load the template
+    const template = await loadPromptTemplate('interpolationTest');
     
     if (!template || !template.template) {
       throw new Error('Test template not available for interpolation test');
@@ -432,6 +444,14 @@ End content`
     console.log(`     ✓ Variable interpolation working`);
     console.log(`     ✓ Conditional interpolation working`);
     console.log(`     ✓ Template processing complete`);
+    
+    // Cleanup the test template
+    try {
+      const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prompts', 'interpolationTest.yaml');
+      await fs.unlink(templatePath);
+    } catch (error) {
+      // File might not exist, that's ok
+    }
   });
 
   // Cleanup
@@ -441,7 +461,7 @@ End content`
     clearTemplateCache();
     
     // Clean up test templates
-    const testTemplates = ['testTemplate', 'validationTest'];
+    const testTemplates = ['testTemplate', 'validationTest', 'interpolationTest'];
     for (const templateName of testTemplates) {
       try {
         const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prompts', `${templateName}.yaml`);
