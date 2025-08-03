@@ -1,0 +1,16 @@
+version: "1.0"
+name: "Context Summarization Prompt"
+template: |
+  Please provide a concise summary of this career coaching conversation, focusing on:
+  1. Key insights about the user's interests and preferences
+  2. Important career-related decisions or discoveries
+  3. Any specific goals or concerns mentioned
+  4. Assessment progress and responses
+  
+  Recent conversation:
+  {{recentMessages}}
+  
+  Provide a structured summary in 3-4 bullet points that will help maintain context for future interactions.
+
+expectedSchema:
+  type: "string"

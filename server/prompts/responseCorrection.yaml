@@ -1,0 +1,13 @@
+version: "1.0"
+name: "Response Format Correction"
+template: |
+  The previous response did not match the expected format. Please reformat the following content according to the specified structure:
+  
+  Original response: {{originalResponse}}
+  
+  Expected format: {{expectedFormat}}
+  
+  Please provide a properly formatted response that maintains the original meaning while following the correct structure.
+
+expectedSchema:
+  type: "object"

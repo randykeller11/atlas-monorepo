@@ -15,6 +15,7 @@ import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from 
 import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentEngine.js';
 import { aiRequest } from './aiService.js';
 import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
+import { getAvailableTemplates, loadPromptTemplate, updateTemplate, clearTemplateCache } from './promptService.js';
 
 const getConversationState = async (sessionId) => {
   return await getSession(sessionId);
@@ -1525,6 +1526,50 @@ app.get('/api/services/health', async (req, res) => {
   } catch (error) {
     console.error('Error checking service health:', error);
     res.status(500).json({ error: 'Failed to check service health' });
+  }
+});
+
+// Admin endpoints for prompt management
+app.get('/api/admin/prompts', async (req, res) => {
+  try {
+    const templates = await getAvailableTemplates();
+    res.json(templates);
+  } catch (error) {
+    console.error('Error getting prompt templates:', error);
+    res.status(500).json({ error: 'Failed to get prompt templates' });
+  }
+});
+
+app.get('/api/admin/prompts/:templateName', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const template = await loadPromptTemplate(templateName);
+    res.json(template);
+  } catch (error) {
+    console.error('Error getting prompt template:', error);
+    res.status(404).json({ error: 'Template not found' });
+  }
+});
+
+app.post('/api/admin/prompts/:templateName', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const { content } = req.body;
+    await updateTemplate(templateName, content);
+    res.json({ message: 'Template updated successfully' });
+  } catch (error) {
+    console.error('Error updating prompt template:', error);
+    res.status(500).json({ error: 'Failed to update template' });
+  }
+});
+
+app.post('/api/admin/prompts/cache/clear', (req, res) => {
+  try {
+    clearTemplateCache();
+    res.json({ message: 'Template cache cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing template cache:', error);
+    res.status(500).json({ error: 'Failed to clear template cache' });
   }
 });
 

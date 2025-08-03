@@ -4,6 +4,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { z } from 'zod';
+import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -22,6 +24,33 @@ const MAX_CONTEXT_MESSAGES = parseInt(process.env.MAX_CONTEXT_MESSAGES) || 20;
 const SUMMARIZATION_THRESHOLD = parseInt(process.env.SUMMARIZATION_THRESHOLD) || 15;
 const MAX_TOKENS_PER_REQUEST = parseInt(process.env.MAX_TOKENS_PER_REQUEST) || 4000;
 
+// Response schemas
+const TextResponseSchema = z.object({
+  type: z.literal('text'),
+  content: z.string().min(1)
+});
+
+const MultipleChoiceResponseSchema = z.object({
+  type: z.literal('multiple_choice'),
+  content: z.string(),
+  question: z.string().min(1),
+  options: z.array(z.object({
+    id: z.string(),
+    text: z.string().min(1)
+  })).min(2).max(4)
+});
+
+const RankingResponseSchema = z.object({
+  type: z.literal('ranking'),
+  content: z.string(),
+  question: z.string().min(1),
+  items: z.array(z.object({
+    id: z.string(),
+    text: z.string().min(1)
+  })).length(4),
+  totalRanks: z.number().int().positive()
+});
+
 /**
  * Main AI request handler with context management
  * @param {string} sessionId - Session identifier
@@ -30,7 +59,7 @@ const MAX_TOKENS_PER_REQUEST = parseInt(process.env.MAX_TOKENS_PER_REQUEST) || 4
  * @returns {Object} AI response with metadata
  */
 export async function aiRequest(sessionId, userInput, options = {}) {
-  console.log(`\n=== AI Request for session ${sessionId} ===`);
+  console.log(`\n=== Enhanced AI Request for session ${sessionId} ===`);
   
   try {
     // Load session
@@ -39,41 +68,71 @@ export async function aiRequest(sessionId, userInput, options = {}) {
     // Check if summarization is needed
     if (shouldSummarize(session)) {
       console.log('Triggering context summarization...');
-      await summarizeContext(session);
+      await summarizeContextWithTemplate(session);
     }
     
-    // Build message context
-    const messages = await buildMessageContext(session, userInput, options);
+    // Build message context using templates
+    const messages = await buildMessageContextWithTemplates(session, userInput, options);
     
-    // Make API call
-    const response = await api.getChatCompletion(messages);
+    // Make API call with retry logic
+    let response;
+    let attempts = 0;
+    const maxAttempts = 3;
     
-    if (!response?.choices?.[0]?.message?.content) {
-      throw new Error('Invalid API response format');
+    while (attempts < maxAttempts) {
+      try {
+        response = await api.getChatCompletion(messages);
+        
+        if (!response?.choices?.[0]?.message?.content) {
+          throw new Error('Invalid API response format');
+        }
+        
+        const aiResponse = response.choices[0].message.content;
+        
+        // Validate response schema
+        const validationResult = await validateResponseWithSchema(aiResponse, options.expectedSchema);
+        
+        if (validationResult.valid) {
+          // Update session history
+          session.history.push(
+            { role: 'user', content: userInput, timestamp: new Date().toISOString() },
+            { role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() }
+          );
+          
+          // Save updated session
+          await saveSession(sessionId, session);
+          
+          console.log(`✓ AI request completed for session ${sessionId} (attempt ${attempts + 1})`);
+          
+          return {
+            content: aiResponse,
+            tokensUsed: response.usage?.total_tokens || 0,
+            model: response.model || 'unknown',
+            sessionUpdated: true,
+            validationPassed: true
+          };
+        } else {
+          console.warn(`Response validation failed (attempt ${attempts + 1}):`, validationResult.error);
+          
+          if (attempts < maxAttempts - 1) {
+            // Try correction with template
+            const correctionMessages = await buildCorrectionMessages(aiResponse, validationResult.error, options);
+            messages.splice(-1, 1, ...correctionMessages); // Replace last message with correction
+          }
+        }
+        
+      } catch (error) {
+        console.error(`API call failed (attempt ${attempts + 1}):`, error.message);
+        if (attempts === maxAttempts - 1) throw error;
+      }
+      
+      attempts++;
     }
     
-    const aiResponse = response.choices[0].message.content;
-    
-    // Update session history
-    session.history.push(
-      { role: 'user', content: userInput, timestamp: new Date().toISOString() },
-      { role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() }
-    );
-    
-    // Save updated session
-    await saveSession(sessionId, session);
-    
-    console.log(`✓ AI request completed for session ${sessionId}`);
-    
-    return {
-      content: aiResponse,
-      tokensUsed: response.usage?.total_tokens || 0,
-      model: response.model || 'unknown',
-      sessionUpdated: true
-    };
+    throw new Error(`Failed to get valid response after ${maxAttempts} attempts`);
     
   } catch (error) {
-    console.error(`❌ AI request failed for session ${sessionId}:`, error.message);
+    console.error(`❌ Enhanced AI request failed for session ${sessionId}:`, error.message);
     throw error;
   }
 }
@@ -86,7 +145,37 @@ function shouldSummarize(session) {
 }
 
 /**
- * Summarize conversation context
+ * Summarize conversation context using templates
+ */
+async function summarizeContextWithTemplate(session) {
+  try {
+    const template = await loadPromptTemplate('summaryPrompt');
+    const recentMessages = session.history.slice(-10).map(msg => `${msg.role}: ${msg.content}`).join('\n');
+    
+    const summaryPrompt = interpolateTemplate(template, { recentMessages });
+    
+    const messages = [
+      { role: 'system', content: 'You are a helpful assistant that summarizes conversations.' },
+      { role: 'user', content: summaryPrompt }
+    ];
+    
+    const response = await api.getChatCompletion(messages);
+    
+    if (response?.choices?.[0]?.message?.content) {
+      session.summary = response.choices[0].message.content;
+      session.history = session.history.slice(-6); // Keep recent messages
+      console.log(`✓ Context summarized using template for session ${session.id}`);
+    }
+    
+  } catch (error) {
+    console.error(`Template-based summarization failed:`, error.message);
+    // Fallback to original method
+    await summarizeContext(session);
+  }
+}
+
+/**
+ * Summarize conversation context (fallback method)
  */
 async function summarizeContext(session) {
   try {
@@ -134,7 +223,60 @@ Provide a structured summary in 3-4 bullet points.`;
 }
 
 /**
- * Build message context for API call
+ * Build message context using templates
+ */
+async function buildMessageContextWithTemplates(session, userInput, options) {
+  const messages = [];
+  
+  try {
+    // Load system prompt template
+    const template = await loadPromptTemplate('careerCoachSystem');
+    
+    // Prepare template variables
+    const templateVars = {
+      persona: session.persona ? JSON.stringify(session.persona) : null,
+      anchors: session.anchors ? session.anchors.join(', ') : null,
+      currentSection: session.currentSection || 'introduction',
+      questionsCompleted: session.totalQuestions || 0,
+      totalQuestions: 10
+    };
+    
+    // Interpolate system message
+    const systemContent = interpolateTemplate(template, templateVars);
+    messages.push({ role: 'system', content: systemContent });
+    
+  } catch (error) {
+    console.warn('Failed to load system template, using fallback:', error.message);
+    // Fallback to original system message
+    const systemMessage = await buildSystemMessage(session, options);
+    messages.push(systemMessage);
+  }
+  
+  // Add summary if available
+  if (session.summary) {
+    messages.push({
+      role: 'assistant',
+      content: `Previous conversation summary: ${session.summary}`
+    });
+  }
+  
+  // Add recent conversation history
+  if (session.history && session.history.length > 0) {
+    const recentHistory = session.history.slice(-6);
+    messages.push(...recentHistory.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })));
+  }
+  
+  // Add current user input
+  messages.push({ role: 'user', content: userInput });
+  
+  return messages;
+}
+
+/**
+ * Build message context for API call (fallback method)
  */
 async function buildMessageContext(session, userInput, options) {
   const messages = [];
@@ -225,6 +367,69 @@ export function validateResponse(response, expectedSchema = null) {
   }
   
   return { valid: true };
+}
+
+/**
+ * Validate AI response against schema
+ */
+async function validateResponseWithSchema(response, expectedSchema) {
+  try {
+    // Try to parse as JSON first
+    let parsedResponse;
+    try {
+      parsedResponse = JSON.parse(response);
+    } catch {
+      // If not JSON, treat as text response
+      parsedResponse = { type: 'text', content: response };
+    }
+    
+    // Validate against appropriate schema
+    switch (parsedResponse.type) {
+      case 'multiple_choice':
+        MultipleChoiceResponseSchema.parse(parsedResponse);
+        break;
+      case 'ranking':
+        RankingResponseSchema.parse(parsedResponse);
+        break;
+      case 'text':
+      default:
+        TextResponseSchema.parse(parsedResponse);
+        break;
+    }
+    
+    return { valid: true, parsedResponse };
+    
+  } catch (error) {
+    return { 
+      valid: false, 
+      error: error.message,
+      originalResponse: response
+    };
+  }
+}
+
+/**
+ * Build correction messages using templates
+ */
+async function buildCorrectionMessages(originalResponse, validationError, options) {
+  try {
+    const template = await loadPromptTemplate('responseCorrection');
+    
+    const correctionPrompt = interpolateTemplate(template, {
+      originalResponse,
+      expectedFormat: validationError,
+      expectedSchema: JSON.stringify(options.expectedSchema || {}, null, 2)
+    });
+    
+    return [{ role: 'user', content: correctionPrompt }];
+    
+  } catch (error) {
+    console.warn('Failed to load correction template:', error.message);
+    return [{
+      role: 'user',
+      content: `Please reformat your previous response. Error: ${validationError}`
+    }];
+  }
 }
 
 /**
