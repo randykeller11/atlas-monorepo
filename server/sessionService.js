@@ -1,16 +1,23 @@
 import Redis from 'ioredis';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Initialize Redis client with TLS support for Heroku
 const redis = new Redis(process.env.REDIS_URL, {
   tls: process.env.NODE_ENV === 'production' ? {} : { rejectUnauthorized: false },
   retryDelayOnFailover: 100,
   maxRetriesPerRequest: 3,
+  lazyConnect: true,
 });
 
 const NAMESPACE = process.env.SESSION_NAMESPACE || (process.env.NODE_ENV === 'development' ? 'dev:' : '');
+const SESSION_TTL = parseInt(process.env.SESSION_TTL) || (7 * 24 * 60 * 60); // 7 days default
 
 // Fallback in-memory store for development resilience
 const memoryStore = new Map();
+let redisHealthy = false;
 
 function createEmptySession() {
   return {
@@ -69,6 +76,7 @@ export async function getSession(sessionId) {
     return session;
   } catch (error) {
     console.warn(`Redis error for session ${sessionId}, falling back to memory:`, error.message);
+    redisHealthy = false;
     
     // Fallback to memory store
     if (!memoryStore.has(sessionId)) {
@@ -84,14 +92,22 @@ export async function getSession(sessionId) {
 
 export async function saveSession(sessionId, sessionObj) {
   const key = `${NAMESPACE}session:${sessionId}`;
+  
+  // Update timestamps
+  sessionObj.lastActivity = new Date().toISOString();
+  if (!sessionObj.createdAt) {
+    sessionObj.createdAt = new Date().toISOString();
+  }
+  
   const payload = JSON.stringify(sessionObj);
-  const ttlSeconds = parseInt(process.env.SESSION_TTL) || (7 * 24 * 60 * 60); // 7 days default
   
   try {
-    await redis.set(key, payload, 'EX', ttlSeconds);
-    console.log(`Session saved for ${sessionId}, TTL: ${ttlSeconds}s`);
+    await redis.set(key, payload, 'EX', SESSION_TTL);
+    console.log(`Session saved for ${sessionId}, TTL: ${SESSION_TTL}s`);
+    redisHealthy = true;
   } catch (error) {
     console.warn(`Redis error saving session ${sessionId}, using memory fallback:`, error.message);
+    redisHealthy = false;
     memoryStore.set(sessionId, sessionObj);
   }
 }
@@ -114,12 +130,70 @@ export async function deleteSession(sessionId) {
 export async function checkRedisHealth() {
   try {
     const result = await redis.ping();
-    return result === 'PONG';
+    redisHealthy = result === 'PONG';
+    return redisHealthy;
   } catch (error) {
     console.error('Redis health check failed:', error.message);
+    redisHealthy = false;
     return false;
   }
 }
+
+// Get current Redis health status
+export function getRedisStatus() {
+  return {
+    healthy: redisHealthy,
+    memoryFallbackActive: !redisHealthy,
+    memoryStoreSize: memoryStore.size,
+    namespace: NAMESPACE,
+    ttl: SESSION_TTL
+  };
+}
+
+// Get session statistics
+export async function getSessionStats(sessionId) {
+  const key = `${NAMESPACE}session:${sessionId}`;
+  
+  try {
+    const ttl = await redis.ttl(key);
+    const exists = await redis.exists(key);
+    
+    return {
+      exists: exists === 1,
+      ttl: ttl,
+      inMemory: memoryStore.has(sessionId),
+      redisHealthy: redisHealthy
+    };
+  } catch (error) {
+    return {
+      exists: memoryStore.has(sessionId),
+      ttl: -1,
+      inMemory: memoryStore.has(sessionId),
+      redisHealthy: false,
+      error: error.message
+    };
+  }
+}
+
+// Cleanup memory store periodically
+export function cleanupMemoryStore() {
+  const maxSize = 1000;
+  if (memoryStore.size > maxSize) {
+    console.log(`Memory store cleanup: ${memoryStore.size} sessions, removing oldest`);
+    const entries = Array.from(memoryStore.entries());
+    
+    // Sort by lastActivity if available, otherwise remove first half
+    const toRemove = entries.slice(0, Math.floor(entries.length / 2));
+    toRemove.forEach(([sessionId]) => {
+      memoryStore.delete(sessionId);
+    });
+    
+    console.log(`Memory store cleanup complete: ${memoryStore.size} sessions remaining`);
+  }
+}
+
+// Periodic cleanup (run every 30 minutes)
+setInterval(cleanupMemoryStore, 30 * 60 * 1000);
 
 // Migration helper to convert existing in-memory sessions
 export function migrateMemorySession(sessionId, memoryState) {
@@ -128,13 +202,66 @@ export function migrateMemorySession(sessionId, memoryState) {
   
   // Map your existing structure
   if (memoryState) {
-    session.currentSection = memoryState.currentSection;
-    session.sections = { ...memoryState.sections };
-    session.questionTypes = { ...memoryState.questionTypes };
+    session.currentSection = memoryState.currentSection || 'introduction';
+    session.sections = { ...session.sections, ...memoryState.sections };
+    session.questionTypes = { ...session.questionTypes, ...memoryState.questionTypes };
     session.lastQuestionType = memoryState.lastQuestionType;
-    session.totalQuestions = memoryState.totalQuestions;
-    session.hasOpenEndedInSection = { ...memoryState.hasOpenEndedInSection };
+    session.totalQuestions = memoryState.totalQuestions || 0;
+    session.hasOpenEndedInSection = { ...session.hasOpenEndedInSection, ...memoryState.hasOpenEndedInSection };
+    
+    // Preserve any existing Phase 1 fields
+    if (memoryState.persona) session.persona = memoryState.persona;
+    if (memoryState.anchors) session.anchors = memoryState.anchors;
+    if (memoryState.history) session.history = memoryState.history;
+    if (memoryState.summary) session.summary = memoryState.summary;
   }
   
   return session;
 }
+
+// Redis connection event handlers
+redis.on('connect', () => {
+  console.log('✓ Redis connected successfully');
+  redisHealthy = true;
+});
+
+redis.on('ready', () => {
+  console.log('✓ Redis ready for commands');
+  redisHealthy = true;
+});
+
+redis.on('error', (error) => {
+  console.warn('⚠ Redis connection error:', error.message);
+  redisHealthy = false;
+});
+
+redis.on('close', () => {
+  console.warn('⚠ Redis connection closed');
+  redisHealthy = false;
+});
+
+redis.on('reconnecting', () => {
+  console.log('🔄 Redis reconnecting...');
+});
+
+// Graceful shutdown handlers
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...');
+  try {
+    await redis.quit();
+    console.log('✓ Redis connection closed');
+  } catch (error) {
+    console.error('Error closing Redis connection:', error.message);
+  }
+});
+
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  try {
+    await redis.quit();
+    console.log('✓ Redis connection closed');
+  } catch (error) {
+    console.error('Error closing Redis connection:', error.message);
+  }
+  process.exit(0);
+});
