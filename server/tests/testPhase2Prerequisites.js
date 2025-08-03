@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { checkRedisHealth } from '../sessionService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 async function testPhase2Prerequisites() {
   console.log('=== Testing Phase 2 Prerequisites ===\n');
@@ -88,6 +88,10 @@ async function testPhase2Prerequisites() {
 
   // Test 4: Supabase Configuration (Optional for now)
   await runTest('Supabase Configuration', async () => {
+    console.log('     Checking environment variables...');
+    console.log(`     SUPABASE_URL: ${process.env.SUPABASE_URL ? 'SET' : 'NOT SET'}`);
+    console.log(`     SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET'}`);
+    
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return { warning: 'Supabase not configured - persona cards will use file storage for now' };
     }
@@ -102,14 +106,18 @@ async function testPhase2Prerequisites() {
     
     // Test that we can import the Supabase client
     try {
+      console.log('     Importing Supabase client...');
       const { supabase, checkSupabaseHealth } = await import('../supabaseClient.js');
       
       if (!supabase) {
         return { warning: 'Supabase client not initialized - check environment variables' };
       }
       
+      console.log('     Testing Supabase connectivity...');
       // Test basic connectivity and table existence
       const health = await checkSupabaseHealth();
+      console.log(`     Health check result: ${JSON.stringify(health)}`);
+      
       if (!health.healthy) {
         if (health.reason.includes('relation "persona_cards" does not exist')) {
           return { warning: 'Supabase connected but persona_cards table missing - run server/migrations/001_create_persona_cards.sql' };
@@ -120,6 +128,7 @@ async function testPhase2Prerequisites() {
       console.log('     ✓ Supabase configured and healthy');
       console.log('     ✓ persona_cards table exists');
     } catch (error) {
+      console.log(`     Import/connection error: ${error.message}`);
       if (error.message.includes('relation "persona_cards" does not exist')) {
         return { warning: 'Supabase connected but persona_cards table missing - run server/migrations/001_create_persona_cards.sql' };
       }
