@@ -17,6 +17,7 @@ const ASSESSMENT_CONFIG = {
 export const assessmentMachine = createMachine({
   id: 'assessment',
   initial: 'introduction',
+  predictableActionArguments: true,
   context: {
     totalQuestions: 0,
     sections: {
@@ -46,7 +47,7 @@ export const assessmentMachine = createMachine({
         ANSWER_QUESTION: {
           target: 'interestExploration',
           cond: 'isIntroductionComplete',
-          actions: ['recordResponse', 'incrementCounters']
+          actions: ['incrementCounters', 'recordResponse']
         }
       },
       meta: {
@@ -60,11 +61,11 @@ export const assessmentMachine = createMachine({
           {
             target: 'workStyle',
             cond: 'isInterestExplorationComplete',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           },
           {
             target: 'interestExploration',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           }
         ]
       },
@@ -79,11 +80,11 @@ export const assessmentMachine = createMachine({
           {
             target: 'technicalAptitude',
             cond: 'isWorkStyleComplete',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           },
           {
             target: 'workStyle',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           }
         ]
       },
@@ -100,11 +101,11 @@ export const assessmentMachine = createMachine({
           {
             target: 'careerValues',
             cond: 'isTechnicalAptitudeComplete',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           },
           {
             target: 'technicalAptitude',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           }
         ]
       },
@@ -121,11 +122,11 @@ export const assessmentMachine = createMachine({
           {
             target: 'summary',
             cond: 'isCareerValuesComplete',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           },
           {
             target: 'careerValues',
-            actions: ['recordResponse', 'incrementCounters']
+            actions: ['incrementCounters', 'recordResponse']
           }
         ]
       },
@@ -146,10 +147,6 @@ export const assessmentMachine = createMachine({
   }
 }, {
   actions: {
-    recordResponse: assign({
-      totalQuestions: (context) => context.totalQuestions + 1,
-      lastQuestionType: (context, event) => event.questionType
-    }),
     incrementCounters: assign((context, event) => {
       const currentState = event.currentState;
       const questionType = event.questionType;
@@ -168,23 +165,32 @@ export const assessmentMachine = createMachine({
           [currentState]: questionType === 'text' ? true : context.hasOpenEndedInSection[currentState]
         }
       };
+    }),
+    recordResponse: assign({
+      totalQuestions: (context) => context.totalQuestions + 1,
+      lastQuestionType: (context, event) => event.questionType
     })
   },
   guards: {
-    isIntroductionComplete: (context) => {
-      return context.sections.introduction >= ASSESSMENT_CONFIG.sections.introduction.max;
+    isIntroductionComplete: (context, event) => {
+      const newCount = context.sections.introduction + 1;
+      return newCount >= ASSESSMENT_CONFIG.sections.introduction.max;
     },
-    isInterestExplorationComplete: (context) => {
-      return context.sections.interestExploration >= ASSESSMENT_CONFIG.sections.interestExploration.max;
+    isInterestExplorationComplete: (context, event) => {
+      const newCount = context.sections.interestExploration + 1;
+      return newCount >= ASSESSMENT_CONFIG.sections.interestExploration.max;
     },
-    isWorkStyleComplete: (context) => {
-      return context.sections.workStyle >= ASSESSMENT_CONFIG.sections.workStyle.max;
+    isWorkStyleComplete: (context, event) => {
+      const newCount = context.sections.workStyle + 1;
+      return newCount >= ASSESSMENT_CONFIG.sections.workStyle.max;
     },
-    isTechnicalAptitudeComplete: (context) => {
-      return context.sections.technicalAptitude >= ASSESSMENT_CONFIG.sections.technicalAptitude.max;
+    isTechnicalAptitudeComplete: (context, event) => {
+      const newCount = context.sections.technicalAptitude + 1;
+      return newCount >= ASSESSMENT_CONFIG.sections.technicalAptitude.max;
     },
-    isCareerValuesComplete: (context) => {
-      return context.sections.careerValues >= ASSESSMENT_CONFIG.sections.careerValues.max;
+    isCareerValuesComplete: (context, event) => {
+      const newCount = context.sections.careerValues + 1;
+      return newCount >= ASSESSMENT_CONFIG.sections.careerValues.max;
     },
     isAssessmentComplete: (context) => {
       return context.totalQuestions >= ASSESSMENT_CONFIG.totalQuestions;
@@ -306,12 +312,15 @@ export class AssessmentStateMachineService {
       }
       
       // Send event to state machine
-      service.send({
+      const event = {
         type: 'ANSWER_QUESTION',
         questionType: response.type,
         currentState: currentState,
         response: response
-      });
+      };
+      
+      console.log(`Sending event:`, event);
+      service.send(event);
       
       // Save updated state
       await this.saveMachineState(sessionId, service);

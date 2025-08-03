@@ -264,18 +264,15 @@ async function testSection6Implementation() {
 
     // Test guard logic
     const initialContext = service.state.context;
-    if (guards.isIntroductionComplete(initialContext)) {
+    const mockEvent = { currentState: 'introduction', questionType: 'text' };
+    
+    if (guards.isIntroductionComplete(initialContext, mockEvent)) {
       throw new Error("Introduction should not be complete initially");
     }
 
-    // Simulate completing introduction
-    const contextAfterIntro = {
-      ...initialContext,
-      sections: { ...initialContext.sections, introduction: 1 },
-    };
-
-    if (!guards.isIntroductionComplete(contextAfterIntro)) {
-      throw new Error("Introduction should be complete after 1 question");
+    // Simulate completing introduction - guards check if section WILL be complete after processing
+    if (!guards.isIntroductionComplete(initialContext, mockEvent)) {
+      throw new Error("Introduction should be complete after processing 1 question");
     }
 
     console.log(`     ✓ Guards configured and working`);
@@ -304,44 +301,53 @@ async function testSection6Implementation() {
       { sections: { introduction: 1, interestExploration: 2, workStyle: 2, technicalAptitude: 2, careerValues: 3 } }
     ];
     
+    // Create mock events for testing guards
+    const mockEvents = [
+      { currentState: 'introduction', questionType: 'text' },
+      { currentState: 'interestExploration', questionType: 'multiple_choice' },
+      { currentState: 'workStyle', questionType: 'multiple_choice' },
+      { currentState: 'technicalAptitude', questionType: 'multiple_choice' },
+      { currentState: 'careerValues', questionType: 'text' }
+    ];
+    
     // Test introduction completion guard
-    if (guards.isIntroductionComplete(testContexts[0])) {
+    if (guards.isIntroductionComplete(testContexts[0], mockEvents[0])) {
       throw new Error('Introduction should not be complete initially');
     }
-    if (!guards.isIntroductionComplete(testContexts[1])) {
-      throw new Error('Introduction should be complete after 1 question');
+    if (!guards.isIntroductionComplete(testContexts[0], mockEvents[0])) {
+      throw new Error('Introduction should be complete after processing 1 question');
     }
     
     // Test interest exploration completion guard
-    if (guards.isInterestExplorationComplete(testContexts[1])) {
-      throw new Error('Interest exploration should not be complete after 0 questions');
+    if (guards.isInterestExplorationComplete(testContexts[1], mockEvents[1])) {
+      throw new Error('Interest exploration should not be complete after 1 question');
     }
-    if (!guards.isInterestExplorationComplete(testContexts[2])) {
-      throw new Error('Interest exploration should be complete after 2 questions');
+    if (!guards.isInterestExplorationComplete({ sections: { interestExploration: 1 } }, mockEvents[1])) {
+      throw new Error('Interest exploration should be complete after processing 2nd question');
     }
     
     // Test work style completion guard
-    if (guards.isWorkStyleComplete(testContexts[2])) {
-      throw new Error('Work style should not be complete after 0 questions');
+    if (guards.isWorkStyleComplete(testContexts[2], mockEvents[2])) {
+      throw new Error('Work style should not be complete after 1 question');
     }
-    if (!guards.isWorkStyleComplete(testContexts[3])) {
-      throw new Error('Work style should be complete after 2 questions');
+    if (!guards.isWorkStyleComplete({ sections: { workStyle: 1 } }, mockEvents[2])) {
+      throw new Error('Work style should be complete after processing 2nd question');
     }
     
     // Test technical aptitude completion guard
-    if (guards.isTechnicalAptitudeComplete(testContexts[3])) {
-      throw new Error('Technical aptitude should not be complete after 0 questions');
+    if (guards.isTechnicalAptitudeComplete(testContexts[3], mockEvents[3])) {
+      throw new Error('Technical aptitude should not be complete after 1 question');
     }
-    if (!guards.isTechnicalAptitudeComplete(testContexts[4])) {
-      throw new Error('Technical aptitude should be complete after 2 questions');
+    if (!guards.isTechnicalAptitudeComplete({ sections: { technicalAptitude: 1 } }, mockEvents[3])) {
+      throw new Error('Technical aptitude should be complete after processing 2nd question');
     }
     
     // Test career values completion guard
-    if (guards.isCareerValuesComplete(testContexts[4])) {
-      throw new Error('Career values should not be complete after 0 questions');
+    if (guards.isCareerValuesComplete(testContexts[4], mockEvents[4])) {
+      throw new Error('Career values should not be complete after 2 questions');
     }
-    if (!guards.isCareerValuesComplete(testContexts[5])) {
-      throw new Error('Career values should be complete after 3 questions');
+    if (!guards.isCareerValuesComplete({ sections: { careerValues: 2 } }, mockEvents[4])) {
+      throw new Error('Career values should be complete after processing 3rd question');
     }
     
     // Test assessment completion guard
