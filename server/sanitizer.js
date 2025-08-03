@@ -1,3 +1,32 @@
+import { z } from 'zod';
+
+// Response schemas for validation
+const MultipleChoiceSchema = z.object({
+  type: z.literal('multiple_choice'),
+  content: z.string(),
+  question: z.string(),
+  options: z.array(z.object({
+    id: z.string(),
+    text: z.string()
+  })).min(2).max(4)
+});
+
+const RankingSchema = z.object({
+  type: z.literal('ranking'),
+  content: z.string(),
+  question: z.string(),
+  items: z.array(z.object({
+    id: z.string(),
+    text: z.string()
+  })).length(4),
+  totalRanks: z.number().min(4).max(4)
+});
+
+const TextSchema = z.object({
+  type: z.literal('text'),
+  content: z.string()
+});
+
 // Response sanitization and validation layer
 const validateResponseFormat = (response) => {
   // Basic structure check
