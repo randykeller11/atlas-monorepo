@@ -11,6 +11,10 @@ import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeResponse } from './sanitizer.js';
 import { getSession, saveSession, deleteSession, checkRedisHealth } from './sessionService.js';
+import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from './personaService.js';
+import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentEngine.js';
+import { aiRequest } from './aiService.js';
+import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
 
 const getConversationState = async (sessionId) => {
   return await getSession(sessionId);
@@ -1398,6 +1402,129 @@ app.get('/api/health/redis', async (req, res) => {
       error: error.message,
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// === SERVICE ENDPOINTS ===
+
+// Persona endpoints
+app.get('/api/persona/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const persona = await analyzePersona(sessionId);
+    res.json(persona);
+  } catch (error) {
+    console.error('Error getting persona:', error);
+    res.status(500).json({ error: 'Failed to get persona' });
+  }
+});
+
+// Assessment endpoints
+app.get('/api/assessment/:sessionId/progress', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await getSession(sessionId);
+    const progress = {
+      questionsCompleted: session.totalQuestions,
+      totalQuestions: 10,
+      percentComplete: Math.round((session.totalQuestions / 10) * 100),
+      currentSection: session.currentSection,
+      sectionsCompleted: session.sections,
+      questionTypes: session.questionTypes
+    };
+    res.json(progress);
+  } catch (error) {
+    console.error('Error getting assessment progress:', error);
+    res.status(500).json({ error: 'Failed to get assessment progress' });
+  }
+});
+
+app.get('/api/assessment/:sessionId/state', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const nextQuestion = await getNextQuestion(sessionId);
+    res.json(nextQuestion);
+  } catch (error) {
+    console.error('Error getting assessment state:', error);
+    res.status(500).json({ error: 'Failed to get assessment state' });
+  }
+});
+
+app.post('/api/assessment/:sessionId/response', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { response } = req.body;
+    const result = await recordResponse(sessionId, response);
+    res.json(result);
+  } catch (error) {
+    console.error('Error recording assessment response:', error);
+    res.status(500).json({ error: 'Failed to record response' });
+  }
+});
+
+app.post('/api/assessment/:sessionId/reset', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const result = await resetAssessment(sessionId);
+    res.json({ message: 'Assessment reset successfully', session: result });
+  } catch (error) {
+    console.error('Error resetting assessment:', error);
+    res.status(500).json({ error: 'Failed to reset assessment' });
+  }
+});
+
+// Resume endpoints (placeholder)
+app.post('/api/resume/:sessionId/generate', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { template } = req.body;
+    const resume = await generateResume(sessionId, { template });
+    res.json(resume);
+  } catch (error) {
+    console.error('Error generating resume:', error);
+    res.status(500).json({ error: 'Failed to generate resume' });
+  }
+});
+
+app.get('/api/resume/templates', async (req, res) => {
+  try {
+    const templates = await getResumeTemplates();
+    res.json(templates);
+  } catch (error) {
+    console.error('Error getting resume templates:', error);
+    res.status(500).json({ error: 'Failed to get resume templates' });
+  }
+});
+
+// Career summary endpoint
+app.get('/api/career-summary/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const summary = await generateCareerSummary(sessionId);
+    res.json(summary);
+  } catch (error) {
+    console.error('Error generating career summary:', error);
+    res.status(500).json({ error: 'Failed to generate career summary' });
+  }
+});
+
+// Service health check endpoint
+app.get('/api/services/health', async (req, res) => {
+  try {
+    const health = {
+      timestamp: new Date().toISOString(),
+      services: {
+        persona: { status: 'active', archetypes: 6 },
+        assessment: { status: 'active', totalQuestions: 10 },
+        ai: { status: 'active', apiConfigured: !!process.env.OPENROUTER_API_KEY },
+        resume: { status: 'placeholder', templates: 3 },
+        redis: await checkRedisHealth() ? 'healthy' : 'unhealthy'
+      }
+    };
+    res.json(health);
+  } catch (error) {
+    console.error('Error checking service health:', error);
+    res.status(500).json({ error: 'Failed to check service health' });
   }
 });
 
