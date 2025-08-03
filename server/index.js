@@ -15,7 +15,16 @@ import { analyzePersona, updatePersonaAnchors, getPersonaRecommendations } from 
 import { getNextQuestion, recordResponse, validateAssessmentState, resetAssessment } from './assessmentStateMachine.js';
 import { aiRequest } from './aiService.js';
 import { generateResume, generateCareerSummary, getResumeTemplates } from './resumeService.js';
-import { getAvailableTemplates, loadPromptTemplate, updateTemplate, clearTemplateCache } from './promptService.js';
+import { 
+  getAvailableTemplates, 
+  loadPromptTemplate, 
+  updateTemplate, 
+  clearTemplateCache,
+  saveTemplateVersion,
+  getTemplateVersionHistory,
+  rollbackTemplate,
+  getCurrentTemplateVersion
+} from './promptService.js';
 import { 
   performContextSummarization, 
   getSummarizationStats, 
@@ -1591,6 +1600,204 @@ app.post('/api/admin/prompts/cache/clear', (req, res) => {
   } catch (error) {
     console.error('Error clearing template cache:', error);
     res.status(500).json({ error: 'Failed to clear template cache' });
+  }
+});
+
+// Enhanced admin endpoints for prompt versioning
+
+// Get version history for a template
+app.get('/api/admin/prompts/:templateName/versions', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const history = await getTemplateVersionHistory(templateName);
+    res.json({
+      templateName,
+      versions: history,
+      currentVersion: await getCurrentTemplateVersion(templateName)
+    });
+  } catch (error) {
+    console.error('Error getting template version history:', error);
+    res.status(500).json({ error: 'Failed to get version history' });
+  }
+});
+
+// Update template with version tracking
+app.put('/api/admin/prompts/:templateName', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const { content, metadata } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Template content is required' });
+    }
+    
+    const result = await saveTemplateVersion(templateName, content, metadata || {});
+    res.json({
+      message: 'Template updated successfully',
+      ...result
+    });
+  } catch (error) {
+    console.error('Error updating template with versioning:', error);
+    res.status(500).json({ error: 'Failed to update template' });
+  }
+});
+
+// Rollback template to previous version
+app.post('/api/admin/prompts/:templateName/rollback', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const { targetVersion } = req.body;
+    
+    if (!targetVersion) {
+      return res.status(400).json({ error: 'Target version is required' });
+    }
+    
+    const result = await rollbackTemplate(templateName, targetVersion);
+    res.json({
+      message: `Template rolled back to version ${targetVersion}`,
+      ...result
+    });
+  } catch (error) {
+    console.error('Error rolling back template:', error);
+    res.status(500).json({ error: 'Failed to rollback template' });
+  }
+});
+
+// Get template diff between versions
+app.get('/api/admin/prompts/:templateName/diff/:version1/:version2', async (req, res) => {
+  try {
+    const { templateName, version1, version2 } = req.params;
+    
+    // This is a placeholder - you could implement actual diff logic
+    // For now, just return the two versions for comparison
+    const history = await getTemplateVersionHistory(templateName);
+    const v1Entry = history.find(h => h.version === version1);
+    const v2Entry = history.find(h => h.version === version2);
+    
+    if (!v1Entry || !v2Entry) {
+      return res.status(404).json({ error: 'One or both versions not found' });
+    }
+    
+    res.json({
+      templateName,
+      version1: { version: version1, entry: v1Entry },
+      version2: { version: version2, entry: v2Entry },
+      message: 'Use client-side diff tool to compare versions'
+    });
+  } catch (error) {
+    console.error('Error getting template diff:', error);
+    res.status(500).json({ error: 'Failed to get template diff' });
+  }
+});
+
+// Bulk template operations
+app.post('/api/admin/prompts/bulk', async (req, res) => {
+  try {
+    const { operation, templates } = req.body;
+    
+    if (!operation || !Array.isArray(templates)) {
+      return res.status(400).json({ error: 'Invalid bulk operation request' });
+    }
+    
+    const results = [];
+    
+    for (const template of templates) {
+      try {
+        let result;
+        switch (operation) {
+          case 'backup':
+            const currentTemplate = await loadPromptTemplate(template.name);
+            result = await saveTemplateVersion(template.name, yaml.dump(currentTemplate), {
+              action: 'bulk_backup',
+              timestamp: new Date().toISOString()
+            });
+            break;
+          case 'clear_cache':
+            templateCache.delete(template.name);
+            result = { success: true, templateName: template.name };
+            break;
+          default:
+            throw new Error(`Unknown operation: ${operation}`);
+        }
+        results.push({ templateName: template.name, success: true, ...result });
+      } catch (error) {
+        results.push({ templateName: template.name, success: false, error: error.message });
+      }
+    }
+    
+    res.json({
+      operation,
+      results,
+      summary: {
+        total: templates.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    });
+  } catch (error) {
+    console.error('Error in bulk template operation:', error);
+    res.status(500).json({ error: 'Failed to perform bulk operation' });
+  }
+});
+
+// Template validation endpoint
+app.post('/api/admin/prompts/:templateName/validate', async (req, res) => {
+  try {
+    const { templateName } = req.params;
+    const { content } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Template content is required' });
+    }
+    
+    // Validate YAML syntax
+    let parsedTemplate;
+    try {
+      parsedTemplate = yaml.load(content);
+    } catch (yamlError) {
+      return res.json({
+        valid: false,
+        errors: [`Invalid YAML syntax: ${yamlError.message}`],
+        warnings: []
+      });
+    }
+    
+    // Validate template structure
+    const errors = [];
+    const warnings = [];
+    
+    if (!parsedTemplate.version) {
+      errors.push('Template missing version field');
+    }
+    
+    if (!parsedTemplate.name) {
+      warnings.push('Template missing name field');
+    }
+    
+    if (!parsedTemplate.template) {
+      errors.push('Template missing template content field');
+    }
+    
+    // Validate template variables
+    if (parsedTemplate.template) {
+      const variables = parsedTemplate.template.match(/\{\{(\w+)\}\}/g) || [];
+      const uniqueVars = [...new Set(variables)];
+      
+      if (uniqueVars.length > 0) {
+        warnings.push(`Template uses ${uniqueVars.length} variables: ${uniqueVars.join(', ')}`);
+      }
+    }
+    
+    res.json({
+      valid: errors.length === 0,
+      errors,
+      warnings,
+      templateName,
+      parsedTemplate: errors.length === 0 ? parsedTemplate : null
+    });
+  } catch (error) {
+    console.error('Error validating template:', error);
+    res.status(500).json({ error: 'Failed to validate template' });
   }
 });
 

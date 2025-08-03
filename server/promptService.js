@@ -8,9 +8,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const PROMPTS_DIR = path.join(__dirname, 'prompts');
+const VERSION_HISTORY_DIR = path.join(PROMPTS_DIR, '.versions');
 
 // In-memory cache for loaded templates
 const templateCache = new Map();
+
+// Add version history tracking
+const versionHistory = new Map();
 
 /**
  * Load and parse a prompt template
