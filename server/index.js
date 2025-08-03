@@ -2045,6 +2045,95 @@ app.get('/api/admin/debug/tokens', async (req, res) => {
   }
 });
 
+// Demo endpoint for Randy Keller
+app.get('/api/demo/randy-keller', async (req, res) => {
+  try {
+    const demoData = {
+      sessionId: 'demo-randy-keller-' + Date.now(),
+      userName: 'Randy Keller',
+      assessmentProgress: {
+        questionsCompleted: 10,
+        totalQuestions: 10,
+        currentSection: 'summary',
+        sections: {
+          introduction: 1,
+          interestExploration: 2,
+          workStyle: 2,
+          technicalAptitude: 2,
+          careerValues: 3
+        }
+      },
+      persona: {
+        primary: {
+          key: 'builder',
+          name: 'The Builder',
+          confidence: 0.87,
+          traits: ['practical', 'hands-on', 'results-oriented', 'problem-solving', 'systematic', 'reliable'],
+          careerFit: ['software-engineering', 'systems-architecture', 'technical-leadership', 'product-development']
+        },
+        summary: [
+          'Primary archetype: The Builder',
+          'Key traits: practical, hands-on, results-oriented, problem-solving, systematic, reliable',
+          'Career alignment: software-engineering, systems-architecture, technical-leadership, product-development',
+          'Confidence level: 87%'
+        ]
+      },
+      personaCard: {
+        id: 'demo-persona-randy',
+        sessionId: 'demo-randy-keller',
+        basePersona: {
+          key: 'builder',
+          name: 'The Builder',
+          confidence: 0.87
+        },
+        archetypeName: 'The Builder',
+        shortDescription: 'You are a natural problem-solver who thrives on creating tangible solutions. Your systematic approach and hands-on mentality make you excel at turning complex challenges into well-structured, practical outcomes.',
+        elevatorPitch: 'I\'m a results-driven professional who combines technical expertise with practical problem-solving. I excel at building robust systems and leading teams to deliver high-quality solutions that make a real impact.',
+        topStrengths: [
+          'Systems Thinking',
+          'Technical Leadership',
+          'Problem Solving',
+          'Project Management',
+          'Team Collaboration',
+          'Quality Focus'
+        ],
+        suggestedRoles: [
+          'Senior Software Engineer',
+          'Technical Lead',
+          'Systems Architect',
+          'Engineering Manager',
+          'Product Development Lead',
+          'DevOps Engineer',
+          'Solutions Architect',
+          'Technical Project Manager'
+        ],
+        nextSteps: [
+          'Explore advanced system design patterns and architectural principles',
+          'Develop leadership skills through mentoring junior developers',
+          'Consider pursuing cloud architecture certifications (AWS, Azure, GCP)',
+          'Build a portfolio showcasing complex systems you\'ve designed and implemented'
+        ],
+        motivationalInsight: 'Your unique combination of technical depth and practical leadership makes you invaluable in bridging the gap between complex technical challenges and business solutions.',
+        assessmentAnchors: ['problem solving', 'building systems', 'technical leadership', 'team collaboration'],
+        createdAt: new Date().toISOString(),
+        version: '1.0'
+      },
+      conversationHistory: [
+        {
+          role: 'assistant',
+          content: 'Hi Randy! I\'m Atlas, your career guidance AI. I can see you\'ve completed your assessment and your Builder persona is ready. What would you like to explore about your career path today?',
+          type: 'text'
+        }
+      ]
+    };
+    
+    res.json(demoData);
+  } catch (error) {
+    console.error('Error generating demo data:', error);
+    res.status(500).json({ error: 'Failed to generate demo data' });
+  }
+});
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/build", "index.html"));
 });

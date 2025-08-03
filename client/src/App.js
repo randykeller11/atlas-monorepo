@@ -458,17 +458,41 @@ function AppContent() {
     setUserName(name);
     setShowWelcome(false);
     
-    // Directly set the initial greeting without making an API call
+    // Check if this is demo data
+    const demoData = localStorage.getItem('demoData');
+    if (demoData) {
+      const demo = JSON.parse(demoData);
+      
+      // Load demo state
+      setAssessmentProgress(demo.assessmentProgress);
+      setPersona(demo.persona);
+      setPersonaCard(demo.personaCard);
+      setQuestionCount(demo.assessmentProgress.questionsCompleted);
+      setConversation(demo.conversationHistory);
+      setConversationHistory([
+        {
+          role: "system",
+          content: "You are Atlas, a career guidance AI assistant helping users explore tech careers."
+        },
+        ...demo.conversationHistory
+      ]);
+      setHasHandledName(true);
+      
+      // Clear demo data
+      localStorage.removeItem('demoData');
+      
+      return;
+    }
+    
+    // Regular flow for non-demo users
     const initialGreeting = {
       role: "assistant",
       content: `Hi ${name}! I'm Atlas, your guide to uncovering possibilities and navigating your path to a fulfilling career! What interests you most about technology?`,
-      type: "text"  // Explicitly set the type as "text"
+      type: "text"
     };
 
-    // Set the initial conversation state
     setConversation([initialGreeting]);
     
-    // Initialize conversation history with system message and include the type
     setConversationHistory([
       {
         role: "system",
@@ -481,11 +505,10 @@ function AppContent() {
       {
         role: "assistant",
         content: initialGreeting.content,
-        type: "text"  // Include the type in conversation history
+        type: "text"
       }
     ]);
 
-    // Set hasHandledName to true since we're counting this as our first question
     setHasHandledName(true);
   };
 
