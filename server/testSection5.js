@@ -154,7 +154,7 @@ async function testSection5Implementation() {
       throw new Error('No summary was created');
     }
     
-    if (updatedSession.history.length >= originalMessageCount) {
+    if (updatedSession.history.length >= 25) {
       throw new Error('Message history was not pruned');
     }
     
