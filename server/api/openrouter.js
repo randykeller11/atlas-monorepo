@@ -11,18 +11,29 @@ class OpenRouterAPI {
     };
   }
 
-  async getChatCompletion(messages) {
+  async getChatCompletion(messages, options = {}) {
     try {
       console.log("=== OpenRouter API Request ===");
       console.log("Messages:", JSON.stringify(messages, null, 2));
 
+      const requestBody = {
+        model: "gpt-4o",
+        messages: messages,
+      };
+
+      // Only add response_format if explicitly requested and messages contain "json"
+      if (options.responseFormat === 'json_object') {
+        const messagesText = JSON.stringify(messages).toLowerCase();
+        if (messagesText.includes('json')) {
+          requestBody.response_format = { type: "json_object" };
+        } else {
+          console.warn("JSON response format requested but messages don't contain 'json' - using default format");
+        }
+      }
+
       const response = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
-        {
-          model: "gpt-4o",
-          messages: messages,
-          response_format: { type: "json_object" },
-        },
+        requestBody,
         {
           headers: this.headers,
         }
