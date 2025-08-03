@@ -895,17 +895,6 @@ const logResponse = (context, response, formattedResponse) => {
   console.log("==================\n");
 };
 
-const logError = (context, error, details = {}) => {
-  console.error("=== Error Details ===");
-  console.error(`Context: ${context}`);
-  console.error(`Timestamp: ${new Date().toISOString()}`);
-  console.error(`Error Message: ${error.message}`);
-  console.error(`Error Name: ${error.name}`);
-  console.error("Additional Details:", details);
-  console.error("Stack Trace:", error.stack);
-  console.error("==================\n");
-};
-
 // Update message endpoint with better logging
 const parseSummaryResponse = (text) => {
   try {
