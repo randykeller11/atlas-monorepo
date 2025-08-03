@@ -3,10 +3,12 @@ import { aiRequest } from './aiService.js';
 import { getSession, saveSession } from './sessionService.js';
 import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
 import { PersonaCardSchema, validatePersonaCard } from './schemas/personaCardSchema.js';
+import { supabase } from './supabaseClient.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import logger from './logger.js';
+import { checkSupabaseHealth } from './supabaseClient.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_CARDS_DIR = path.join(__dirname, 'persona-cards');
@@ -91,8 +93,8 @@ export async function enrichPersona(sessionId, options = {}) {
     // Cache the result
     personaCardCache.set(cacheKey, enrichedPersonaCard);
     
-    // Persist to file system
-    await savePersonaCardToFile(enrichedPersonaCard);
+    // Persist to database (with file fallback)
+    await savePersonaCardToSupabase(enrichedPersonaCard);
     
     // Update session with enriched persona
     session.enrichedPersona = enrichedPersonaCard;
@@ -145,8 +147,8 @@ export async function getEnrichedPersona(sessionId) {
       }
     }
     
-    // Try to load from file
-    const personaCard = await loadPersonaCardFromFile(sessionId);
+    // Try to load from database (with file fallback)
+    const personaCard = await loadPersonaCardFromSupabase(sessionId);
     if (personaCard) {
       // Update cache
       const cacheKey = `${sessionId}-${personaCard.basePersona.key}-v1.0`;
@@ -166,6 +168,48 @@ export async function getEnrichedPersona(sessionId) {
 }
 
 /**
+ * Save persona card to Supabase database
+ */
+async function savePersonaCardToSupabase(personaCard) {
+  if (!supabase) {
+    console.warn('Supabase not configured, falling back to file storage');
+    return await savePersonaCardToFile(personaCard);
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('persona_cards')
+      .insert([{
+        session_id: personaCard.sessionId,
+        base_persona: personaCard.basePersona,
+        archetype_name: personaCard.archetypeName,
+        short_description: personaCard.shortDescription,
+        elevator_pitch: personaCard.elevatorPitch,
+        top_strengths: personaCard.topStrengths,
+        suggested_roles: personaCard.suggestedRoles,
+        next_steps: personaCard.nextSteps,
+        motivational_insight: personaCard.motivationalInsight,
+        assessment_anchors: personaCard.assessmentAnchors,
+        version: personaCard.version
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.warn('Supabase insert failed, falling back to file storage:', error.message);
+      return await savePersonaCardToFile(personaCard);
+    }
+    
+    console.log(`✓ Persona card saved to Supabase: ${data.id}`);
+    return data;
+    
+  } catch (error) {
+    console.warn('Supabase error, falling back to file storage:', error.message);
+    return await savePersonaCardToFile(personaCard);
+  }
+}
+
+/**
  * Save persona card to file system
  */
 async function savePersonaCardToFile(personaCard) {
@@ -179,6 +223,54 @@ async function savePersonaCardToFile(personaCard) {
   } catch (error) {
     console.warn(`Failed to save persona card to file: ${error.message}`);
     // Don't throw - file saving is not critical
+  }
+}
+
+/**
+ * Load persona card from Supabase database
+ */
+async function loadPersonaCardFromSupabase(sessionId) {
+  if (!supabase) {
+    return await loadPersonaCardFromFile(sessionId);
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('persona_cards')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found, try file fallback
+        return await loadPersonaCardFromFile(sessionId);
+      }
+      throw error;
+    }
+    
+    // Convert database format back to application format
+    return {
+      id: data.id,
+      sessionId: data.session_id,
+      basePersona: data.base_persona,
+      archetypeName: data.archetype_name,
+      shortDescription: data.short_description,
+      elevatorPitch: data.elevator_pitch,
+      topStrengths: data.top_strengths,
+      suggestedRoles: data.suggested_roles,
+      nextSteps: data.next_steps,
+      motivationalInsight: data.motivational_insight,
+      assessmentAnchors: data.assessment_anchors,
+      createdAt: data.created_at,
+      version: data.version
+    };
+    
+  } catch (error) {
+    console.warn('Supabase query failed, falling back to file storage:', error.message);
+    return await loadPersonaCardFromFile(sessionId);
   }
 }
 
@@ -224,11 +316,15 @@ export function clearPersonaCardCache() {
 /**
  * Get persona enrichment service health
  */
-export function getPersonaEnrichmentHealth() {
+export async function getPersonaEnrichmentHealth() {
+  const supabaseHealth = supabase ? await checkSupabaseHealth() : { healthy: false, reason: 'not_configured' };
+  
   return {
     cacheSize: personaCardCache.size,
     storageDirectory: PERSONA_CARDS_DIR,
     templateAvailable: true,
-    schemaValidation: true
+    schemaValidation: true,
+    supabase: supabaseHealth,
+    fallbackStorage: 'file_system'
   };
 }
