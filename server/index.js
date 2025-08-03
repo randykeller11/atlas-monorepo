@@ -10,40 +10,14 @@ import { users } from "./users.js";
 import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeResponse } from './sanitizer.js';
+import { getSession, saveSession, deleteSession, checkRedisHealth } from './sessionService.js';
 
-// Conversation state management
-const conversationStates = new Map();
-
-const getConversationState = (sessionId) => {
-  if (!conversationStates.has(sessionId)) {
-    conversationStates.set(sessionId, {
-      currentSection: 'introduction',
-      sections: {
-        interestExploration: 0,
-        workStyle: 0,
-        technicalAptitude: 0,
-        careerValues: 0
-      },
-      questionTypes: {
-        multiple_choice: 0,
-        text: 0,
-        ranking: 0
-      },
-      lastQuestionType: null,
-      totalQuestions: 0,
-      hasOpenEndedInSection: {
-        interestExploration: false,
-        workStyle: false,
-        technicalAptitude: false,
-        careerValues: false
-      }
-    });
-  }
-  return conversationStates.get(sessionId);
+const getConversationState = async (sessionId) => {
+  return await getSession(sessionId);
 };
 
-const updateConversationState = (sessionId, response) => {
-  const state = getConversationState(sessionId);
+const updateConversationState = async (sessionId, response) => {
+  const state = await getSession(sessionId);
   
   if (response.type && ['multiple_choice', 'ranking', 'text'].includes(response.type)) {
     state.questionTypes[response.type]++;
@@ -93,7 +67,7 @@ const updateConversationState = (sessionId, response) => {
     }
   }
 
-  conversationStates.set(sessionId, state);
+  await saveSession(sessionId, state);
   return state;
 };
 
@@ -1066,7 +1040,7 @@ app.post("/api/message", async (req, res) => {
   console.log('Conversation:', conversation);
   
   try {
-    const state = getConversationState(sessionId);
+    const state = await getConversationState(sessionId);
     
     // Ensure conversation is an array
     const conversationArray = Array.isArray(conversation) ? conversation : [];
@@ -1229,7 +1203,7 @@ app.post("/api/message", async (req, res) => {
       );
       
       // Update conversation state
-      updateConversationState(sessionId, sanitizedResponse);
+      await updateConversationState(sessionId, sanitizedResponse);
       
       // Add state to response
       const responseWithState = {
@@ -1402,12 +1376,29 @@ app.post("/api/initial-message", async (req, res) => {
   }
 });
 
-app.post("/api/reset-session", (req, res) => {
+app.post("/api/reset-session", async (req, res) => {
   const sessionId = req.headers['session-id'];
   if (sessionId) {
-    conversationStates.delete(sessionId);
+    await deleteSession(sessionId);
   }
   res.json({ message: "Session reset successfully" });
+});
+
+// Add Redis health check endpoint
+app.get('/api/health/redis', async (req, res) => {
+  try {
+    const isHealthy = await checkRedisHealth();
+    res.json({ 
+      redis: isHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      redis: 'error', 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 app.get("*", (req, res) => {
