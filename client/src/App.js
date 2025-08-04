@@ -698,31 +698,152 @@ function AppContent() {
                 hasPersona={!!persona}
               />
 
-              {/* Temporary test buttons for Randy */}
+              {/* Large Demo Buttons for Randy */}
               {userName === 'Randy Keller' && (
                 <div style={{
-                  margin: '20px 0',
-                  padding: '15px',
-                  background: '#f0f8ff',
-                  border: '2px solid #4169e1',
-                  borderRadius: '8px'
+                  margin: '30px 0',
+                  padding: '40px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '16px',
+                  textAlign: 'center',
+                  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
                 }}>
-                  <h4>🧪 Randy Demo - Test Services</h4>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button onClick={() => setShowSimulator(true)} style={{padding: '8px 16px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px'}}>
-                      Test Simulator
+                  <h2 style={{
+                    color: 'white',
+                    margin: '0 0 30px 0',
+                    fontSize: '2rem',
+                    fontWeight: 'bold'
+                  }}>
+                    🎯 Randy Keller Demo - Phase 2 Features
+                  </h2>
+                  
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+                    gap: '20px',
+                    marginBottom: '30px'
+                  }}>
+                    <button 
+                      onClick={() => setShowSimulator(true)} 
+                      style={{
+                        padding: '30px 40px',
+                        background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        boxShadow: '0 6px 20px rgba(255, 107, 107, 0.4)',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '15px'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'translateY(-4px)';
+                        e.target.style.boxShadow = '0 8px 25px rgba(255, 107, 107, 0.5)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(255, 107, 107, 0.4)';
+                      }}
+                    >
+                      <span style={{ fontSize: '3rem' }}>🎮</span>
+                      <div>
+                        <div>Day-in-Life Simulator</div>
+                        <div style={{ fontSize: '1rem', opacity: '0.9', fontWeight: 'normal' }}>
+                          Interactive Help Desk Scenarios
+                        </div>
+                      </div>
                     </button>
-                    <button onClick={() => setShowResumeGenerator(true)} style={{padding: '8px 16px', background: '#2196f3', color: 'white', border: 'none', borderRadius: '4px'}}>
-                      Test Resume
+                    
+                    <button 
+                      onClick={() => setShowResumeGenerator(true)} 
+                      style={{
+                        padding: '30px 40px',
+                        background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        boxShadow: '0 6px 20px rgba(79, 172, 254, 0.4)',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '15px'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'translateY(-4px)';
+                        e.target.style.boxShadow = '0 8px 25px rgba(79, 172, 254, 0.5)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(79, 172, 254, 0.4)';
+                      }}
+                    >
+                      <span style={{ fontSize: '3rem' }}>📄</span>
+                      <div>
+                        <div>AI Resume Generator</div>
+                        <div style={{ fontSize: '1rem', opacity: '0.9', fontWeight: 'normal' }}>
+                          Persona-Optimized Resumes
+                        </div>
+                      </div>
                     </button>
-                    <button onClick={() => setShowImpactDashboard(true)} style={{padding: '8px 16px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px'}}>
-                      Test Dashboard
+                    
+                    <button 
+                      onClick={() => setShowImpactDashboard(true)} 
+                      style={{
+                        padding: '30px 40px',
+                        background: 'linear-gradient(135deg, #a8edea, #fed6e3)',
+                        color: '#333',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        boxShadow: '0 6px 20px rgba(168, 237, 234, 0.4)',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '15px'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'translateY(-4px)';
+                        e.target.style.boxShadow = '0 8px 25px rgba(168, 237, 234, 0.5)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(168, 237, 234, 0.4)';
+                      }}
+                    >
+                      <span style={{ fontSize: '3rem' }}>📊</span>
+                      <div>
+                        <div>Impact Dashboard</div>
+                        <div style={{ fontSize: '1rem', opacity: '0.8', fontWeight: 'normal' }}>
+                          Analytics & Success Metrics
+                        </div>
+                      </div>
                     </button>
                   </div>
-                  <p style={{margin: '10px 0 0 0', fontSize: '0.9rem', color: '#666'}}>
-                    PersonaCard exists: {personaCard ? '✅ Yes' : '❌ No'} | 
-                    Persona exists: {persona ? '✅ Yes' : '❌ No'}
-                  </p>
+                  
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    color: 'white'
+                  }}>
+                    <p style={{ margin: '0', fontSize: '1.1rem' }}>
+                      ✅ PersonaCard: {personaCard ? 'Ready' : 'Loading...'} | 
+                      ✅ Persona: {persona ? 'Ready' : 'Loading...'} | 
+                      🎯 Demo Mode Active
+                    </p>
+                  </div>
                 </div>
               )}
               
