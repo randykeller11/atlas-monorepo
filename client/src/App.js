@@ -98,6 +98,11 @@ function AppContent() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [showResumeGenerator, setShowResumeGenerator] = useState(false);
   const [showImpactDashboard, setShowImpactDashboard] = useState(false);
+  const [completedServices, setCompletedServices] = useState({
+    simulator: false,
+    resume: false,
+    dashboard: false
+  });
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -696,31 +701,92 @@ function AppContent() {
                 />
               )}
               
-              {/* Feature Buttons for Demo */}
+              {/* Enhanced Services Dashboard */}
               {personaCard && (
-                <div className="persona-actions">
-                  <div className="feature-buttons">
-                    <button 
-                      className="feature-button simulator"
-                      onClick={() => setShowSimulator(true)}
-                    >
-                      🎮 Try Day-in-Life Simulator
-                    </button>
-                    
-                    <button 
-                      className="feature-button resume"
-                      onClick={() => setShowResumeGenerator(true)}
-                    >
-                      📄 Generate AI Resume
-                    </button>
-                    
-                    <button 
-                      className="feature-button dashboard"
-                      onClick={() => setShowImpactDashboard(true)}
-                    >
-                      📊 View Impact Dashboard
-                    </button>
+                <div className="services-dashboard">
+                  <div className="services-header">
+                    <h3>🚀 Explore Your Career Journey</h3>
+                    <p>Now that you have your persona card, try these powerful career tools:</p>
                   </div>
+                  
+                  <div className="services-status">
+                    <div className="status-item available">
+                      <span className="status-dot"></span>
+                      <span>Persona Analysis Complete</span>
+                    </div>
+                    <div className="status-item available">
+                      <span className="status-dot"></span>
+                      <span>Career Simulator Ready</span>
+                    </div>
+                    <div className="status-item available">
+                      <span className="status-dot"></span>
+                      <span>Resume Generator Active</span>
+                    </div>
+                    <div className="status-item available">
+                      <span className="status-dot"></span>
+                      <span>Impact Dashboard Available</span>
+                    </div>
+                  </div>
+                  
+                  <div className="services-grid">
+                    <div className={`service-card simulator ${completedServices.simulator ? 'completed' : ''}`} onClick={() => setShowSimulator(true)}>
+                      <div className="service-icon">🎮</div>
+                      <div className="service-content">
+                        <h4>Day-in-Life Simulator</h4>
+                        <p>Experience a help desk technician role through interactive scenarios</p>
+                        <div className="service-features">
+                          <span>• Real-time scoring</span>
+                          <span>• AI-powered NPCs</span>
+                          <span>• Performance insights</span>
+                        </div>
+                      </div>
+                      <div className="service-action">Try Now →</div>
+                      {completedServices.simulator && (
+                        <div className="completion-badge">✓ Completed</div>
+                      )}
+                    </div>
+                    
+                    <div className={`service-card resume ${completedServices.resume ? 'completed' : ''}`} onClick={() => setShowResumeGenerator(true)}>
+                      <div className="service-icon">📄</div>
+                      <div className="service-content">
+                        <h4>AI Resume Generator</h4>
+                        <p>Create a tailored resume based on your Builder persona</p>
+                        <div className="service-features">
+                          <span>• Persona-optimized content</span>
+                          <span>• Multiple templates</span>
+                          <span>• ATS-friendly format</span>
+                        </div>
+                      </div>
+                      <div className="service-action">Generate →</div>
+                      {completedServices.resume && (
+                        <div className="completion-badge">✓ Completed</div>
+                      )}
+                    </div>
+                    
+                    <div className={`service-card dashboard ${completedServices.dashboard ? 'completed' : ''}`} onClick={() => setShowImpactDashboard(true)}>
+                      <div className="service-icon">📊</div>
+                      <div className="service-content">
+                        <h4>Impact Dashboard</h4>
+                        <p>View analytics and success metrics across all users</p>
+                        <div className="service-features">
+                          <span>• Real-time metrics</span>
+                          <span>• Career outcomes</span>
+                          <span>• Success stories</span>
+                        </div>
+                      </div>
+                      <div className="service-action">Explore →</div>
+                      {completedServices.dashboard && (
+                        <div className="completion-badge">✓ Completed</div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Demo mode indicator */}
+                  {userName === 'Randy Keller' && (
+                    <div className="demo-indicator">
+                      <span>🎯 Demo Mode Active - All features unlocked for Randy Keller</span>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -750,7 +816,10 @@ function AppContent() {
               
               {showSimulator && (
                 <DayInLifeSimulator
-                  onClose={() => setShowSimulator(false)}
+                  onClose={() => {
+                    setCompletedServices(prev => ({ ...prev, simulator: true }));
+                    setShowSimulator(false);
+                  }}
                   personaCard={personaCard}
                   sessionId={sessionId}
                 />
@@ -758,7 +827,10 @@ function AppContent() {
 
               {showResumeGenerator && (
                 <ResumeGenerator
-                  onClose={() => setShowResumeGenerator(false)}
+                  onClose={() => {
+                    setCompletedServices(prev => ({ ...prev, resume: true }));
+                    setShowResumeGenerator(false);
+                  }}
                   personaCard={personaCard}
                   sessionId={sessionId}
                 />
@@ -766,7 +838,10 @@ function AppContent() {
 
               {showImpactDashboard && (
                 <ImpactDashboard
-                  onClose={() => setShowImpactDashboard(false)}
+                  onClose={() => {
+                    setCompletedServices(prev => ({ ...prev, dashboard: true }));
+                    setShowImpactDashboard(false);
+                  }}
                 />
               )}
             </div>
@@ -920,6 +995,230 @@ const globalStyles = `
   }
 
   .radioOption:hover { background-color: #e0e0e0; }
+
+  .services-dashboard {
+    margin: 30px 0;
+    padding: 30px;
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    border-radius: 16px;
+    border: 1px solid #e3f2fd;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
+  }
+
+  .services-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .services-header h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .services-header p {
+    margin: 0;
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .services-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4caf50;
+    animation: pulse 2s infinite;
+  }
+
+  .status-item.available {
+    color: #2e7d32;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .service-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .service-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    transition: all 0.3s ease;
+  }
+
+  .service-card.simulator::before {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+  }
+
+  .service-card.resume::before {
+    background: linear-gradient(90deg, #2196f3, #21cbf3);
+  }
+
+  .service-card.dashboard::before {
+    background: linear-gradient(90deg, #4caf50, #45a049);
+  }
+
+  .service-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .service-card:hover::before {
+    height: 6px;
+  }
+
+  .service-card.simulator:hover {
+    border-color: #667eea;
+  }
+
+  .service-card.resume:hover {
+    border-color: #2196f3;
+  }
+
+  .service-card.dashboard:hover {
+    border-color: #4caf50;
+  }
+
+  .service-card.completed {
+    border-color: #4caf50;
+    background: linear-gradient(135deg, #f8fff8 0%, #f0fff0 100%);
+  }
+
+  .service-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    display: block;
+  }
+
+  .service-content h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .service-content p {
+    margin: 0 0 15px 0;
+    color: #666;
+    line-height: 1.5;
+    font-size: 0.95rem;
+  }
+
+  .service-features {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 15px;
+  }
+
+  .service-features span {
+    font-size: 0.85rem;
+    color: #888;
+    display: flex;
+    align-items: center;
+  }
+
+  .service-action {
+    color: #667eea;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .service-card.resume .service-action {
+    color: #2196f3;
+  }
+
+  .service-card.dashboard .service-action {
+    color: #4caf50;
+  }
+
+  .completion-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #4caf50;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .demo-indicator {
+    text-align: center;
+    padding: 15px;
+    background: linear-gradient(90deg, #ffd54f, #ffb74d);
+    border-radius: 8px;
+    margin-top: 20px;
+  }
+
+  .demo-indicator span {
+    color: #333;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 768px) {
+    .services-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .services-dashboard {
+      margin: 20px 0;
+      padding: 20px;
+    }
+    
+    .service-card {
+      padding: 20px;
+    }
+  }
 `;
 
 const styleSheet = document.createElement("style");
