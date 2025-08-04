@@ -14,6 +14,9 @@ import Welcome from "./components/Welcome";
 import PersonaCard from "./components/PersonaCard";
 import PersonaPreview from "./components/PersonaPreview";
 import AssessmentProgress from "./components/AssessmentProgress";
+import DayInLifeSimulator from './components/DayInLifeSimulator';
+import ResumeGenerator from './components/ResumeGenerator';
+import ImpactDashboard from './components/ImpactDashboard';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 export const HamburgerMenu = ({ isOpen, toggleMenu }) => {
@@ -92,6 +95,9 @@ function AppContent() {
     sections: {}
   });
   const [isLoadingPersona, setIsLoadingPersona] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
+  const [showResumeGenerator, setShowResumeGenerator] = useState(false);
+  const [showImpactDashboard, setShowImpactDashboard] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -690,6 +696,34 @@ function AppContent() {
                 />
               )}
               
+              {/* Feature Buttons for Demo */}
+              {personaCard && (
+                <div className="persona-actions">
+                  <div className="feature-buttons">
+                    <button 
+                      className="feature-button simulator"
+                      onClick={() => setShowSimulator(true)}
+                    >
+                      🎮 Try Day-in-Life Simulator
+                    </button>
+                    
+                    <button 
+                      className="feature-button resume"
+                      onClick={() => setShowResumeGenerator(true)}
+                    >
+                      📄 Generate AI Resume
+                    </button>
+                    
+                    <button 
+                      className="feature-button dashboard"
+                      onClick={() => setShowImpactDashboard(true)}
+                    >
+                      📊 View Impact Dashboard
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <Chat
                 conversation={conversation}
                 loading={loading}
@@ -711,6 +745,27 @@ function AppContent() {
                   personaCard={personaCard}
                   onClose={() => setShowPersonaCard(false)}
                   onEnrichPersona={enrichPersona}
+                />
+              )}
+              
+              {showSimulator && (
+                <DayInLifeSimulator
+                  onClose={() => setShowSimulator(false)}
+                  personaCard={personaCard}
+                />
+              )}
+
+              {showResumeGenerator && (
+                <ResumeGenerator
+                  onClose={() => setShowResumeGenerator(false)}
+                  personaCard={personaCard}
+                  sessionId={sessionId}
+                />
+              )}
+
+              {showImpactDashboard && (
+                <ImpactDashboard
+                  onClose={() => setShowImpactDashboard(false)}
                 />
               )}
             </div>
