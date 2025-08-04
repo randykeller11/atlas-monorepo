@@ -1,344 +1,143 @@
-import { v4 as uuidv4 } from 'uuid';
-import { aiRequest } from './aiService.js';
 import { getSession, saveSession } from './sessionService.js';
-import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
-import { PersonaCardSchema, validatePersonaCard } from './schemas/personaCardSchema.js';
-import { supabase } from './supabaseClient.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { aiRequest } from './aiService.js';
+import { knowledgeBaseService } from './knowledgeBaseService.js';
 import logger from './logger.js';
-import { checkSupabaseHealth } from './supabaseClient.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PERSONA_CARDS_DIR = path.join(__dirname, 'persona-cards');
-
-// Ensure persona cards directory exists
-await fs.mkdir(PERSONA_CARDS_DIR, { recursive: true });
-
-// In-memory cache for persona cards
-const personaCardCache = new Map();
 
 /**
- * Enrich a base persona with detailed, personalized content
+ * Enrich a persona with detailed career insights
  */
 export async function enrichPersona(sessionId, options = {}) {
-  console.log(`\n=== Enriching Persona for session ${sessionId} ===`);
+  console.log(`Enriching persona for session ${sessionId}`);
   
   try {
     const session = await getSession(sessionId);
     
-    // Validate we have the required data
-    if (!session.persona || !session.persona.primary) {
-      throw new Error('No base persona found - run persona analysis first');
+    if (!session.persona) {
+      throw new Error('No persona found for enrichment');
     }
     
-    // Check cache first
-    const cacheKey = `${sessionId}-${session.persona.primary.key}-v1.0`;
-    if (personaCardCache.has(cacheKey) && !options.forceRefresh) {
-      console.log('✓ Using cached enriched persona');
-      return personaCardCache.get(cacheKey);
+    // Check if already enriched and not forcing refresh
+    if (session.enrichedPersona && !options.forceRefresh) {
+      console.log('Using existing enriched persona');
+      return session.enrichedPersona;
     }
     
-    // Load enrichment template
-    const template = await loadPromptTemplate('personaEnrichment');
+    // Get career insights from knowledge base
+    const careerInsights = await knowledgeBaseService.getCareerInsights(
+      session.persona,
+      session.anchors || []
+    );
     
-    // Prepare template variables
-    const templateVars = {
-      basePersona: JSON.stringify(session.persona.primary),
-      assessmentAnchors: (session.anchors || []).join(', '),
-      userGoals: options.userGoals || 'Explore career options and find fulfilling work'
-    };
-    
-    // Generate enrichment prompt
-    const enrichmentPrompt = interpolateTemplate(template, templateVars);
-    
-    console.log('Calling AI service for persona enrichment...');
-    
-    // Make AI request for enrichment
-    const aiResponse = await aiRequest(sessionId, enrichmentPrompt, {
-      systemInstructions: 'You are a career counselor creating personalized career guidance. Respond with valid JSON only.',
+    // Build enrichment prompt
+    const enrichmentPrompt = `Based on this persona analysis, create a comprehensive career persona card:
+
+Persona: ${session.persona.primary.name}
+Confidence: ${Math.round(session.persona.primary.confidence * 100)}%
+Key Traits: ${session.persona.primary.traits.join(', ')}
+Career Fit: ${session.persona.primary.careerFit.join(', ')}
+User Insights: ${(session.anchors || []).join(', ')}
+
+Career Matches from Knowledge Base:
+${careerInsights.map(insight => 
+  `- ${insight.title} (${insight.match}% match): ${insight.description}`
+).join('\n')}
+
+Create a detailed persona card with:
+1. A compelling archetype name and short description
+2. An elevator pitch (2-3 sentences)
+3. Top 6 strengths
+4. 8 suggested roles based on the persona and career matches
+5. 4 specific next steps for career development
+6. A motivational insight
+
+Format as JSON with these exact fields: archetypeName, shortDescription, elevatorPitch, topStrengths, suggestedRoles, nextSteps, motivationalInsight`;
+
+    // Get AI enrichment
+    const response = await aiRequest(sessionId, enrichmentPrompt, {
+      systemInstructions: 'Generate a comprehensive career persona card based on the analysis. Return valid JSON with all required fields.',
       expectedSchema: 'json_object'
     });
     
-    // Parse and validate the response
     let enrichedData;
     try {
-      let jsonContent = aiResponse.content;
-      
-      // Handle markdown code blocks
-      const jsonMatch = jsonContent.match(/```json\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[1];
-      }
-      
-      // Also handle plain code blocks
-      const codeMatch = jsonContent.match(/```\s*([\s\S]*?)\s*```/);
-      if (codeMatch && !jsonMatch) {
-        jsonContent = codeMatch[1];
-      }
-      
-      enrichedData = JSON.parse(jsonContent);
+      enrichedData = JSON.parse(response.content);
     } catch (parseError) {
-      throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
-    }
-    
-    // Validate against schema
-    const validation = validatePersonaCard(enrichedData);
-    if (!validation.success) {
-      throw new Error(`Persona card validation failed: ${validation.errors.map(e => e.message).join(', ')}`);
+      console.warn('Failed to parse enrichment JSON, using fallback');
+      enrichedData = generateFallbackEnrichment(session.persona, careerInsights);
     }
     
     // Create enriched persona card
-    const enrichedPersonaCard = {
-      id: uuidv4(),
+    const enrichedPersona = {
+      id: `enriched-${sessionId}-${Date.now()}`,
       sessionId: sessionId,
       basePersona: {
         key: session.persona.primary.key,
         name: session.persona.primary.name,
         confidence: session.persona.primary.confidence
       },
+      archetypeName: enrichedData.archetypeName || session.persona.primary.name,
+      shortDescription: enrichedData.shortDescription || 'A dedicated professional with unique strengths and capabilities.',
+      elevatorPitch: enrichedData.elevatorPitch || 'I bring a unique combination of skills and passion to create meaningful impact in my work.',
+      topStrengths: enrichedData.topStrengths || session.persona.primary.traits.slice(0, 6),
+      suggestedRoles: enrichedData.suggestedRoles || session.persona.primary.careerFit.map(role => 
+        role.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+      ),
+      nextSteps: enrichedData.nextSteps || [
+        'Complete a skills assessment to identify areas for growth',
+        'Network with professionals in your field of interest',
+        'Consider additional training or certifications',
+        'Build a portfolio showcasing your capabilities'
+      ],
+      motivationalInsight: enrichedData.motivationalInsight || 'Your unique combination of traits positions you well for success in your chosen field.',
+      careerInsights: careerInsights,
       assessmentAnchors: session.anchors || [],
       createdAt: new Date().toISOString(),
-      version: "1.0",
-      ...validation.data
+      version: '1.0'
     };
     
-    // Cache the result
-    personaCardCache.set(cacheKey, enrichedPersonaCard);
-    
-    // Persist to database (with file fallback)
-    await savePersonaCardToSupabase(enrichedPersonaCard);
-    
-    // Update session with enriched persona
-    session.enrichedPersona = enrichedPersonaCard;
+    // Save enriched persona
+    session.enrichedPersona = enrichedPersona;
     await saveSession(sessionId, session);
     
-    logger.info('Persona enrichment completed', {
-      sessionId,
-      personaType: enrichedPersonaCard.basePersona.key,
-      strengthsCount: enrichedPersonaCard.topStrengths.length,
-      rolesCount: enrichedPersonaCard.suggestedRoles.length
-    });
+    console.log(`✓ Persona enriched for session ${sessionId}: ${enrichedPersona.archetypeName}`);
     
-    console.log('✓ Persona enrichment completed');
-    console.log(`  - Archetype: ${enrichedPersonaCard.archetypeName}`);
-    console.log(`  - Strengths: ${enrichedPersonaCard.topStrengths.length}`);
-    console.log(`  - Suggested roles: ${enrichedPersonaCard.suggestedRoles.length}`);
-    console.log(`  - Next steps: ${enrichedPersonaCard.nextSteps.length}`);
-    
-    return enrichedPersonaCard;
+    return enrichedPersona;
     
   } catch (error) {
-    logger.error('Persona enrichment failed', {
-      sessionId,
-      error: error.message,
-      stack: error.stack
-    });
-    
-    console.error(`❌ Persona enrichment failed: ${error.message}`);
+    console.error('Error enriching persona:', error);
     throw error;
   }
 }
 
 /**
- * Get enriched persona card for a session
+ * Get existing enriched persona
  */
 export async function getEnrichedPersona(sessionId) {
   try {
     const session = await getSession(sessionId);
-    
-    // Check session first
-    if (session.enrichedPersona) {
-      return session.enrichedPersona;
-    }
-    
-    // Check cache
-    if (session.persona?.primary?.key) {
-      const cacheKey = `${sessionId}-${session.persona.primary.key}-v1.0`;
-      if (personaCardCache.has(cacheKey)) {
-        return personaCardCache.get(cacheKey);
-      }
-    }
-    
-    // Try to load from database (with file fallback)
-    const personaCard = await loadPersonaCardFromSupabase(sessionId);
-    if (personaCard) {
-      // Update cache
-      const cacheKey = `${sessionId}-${personaCard.basePersona.key}-v1.0`;
-      personaCardCache.set(cacheKey, personaCard);
-      return personaCard;
-    }
-    
-    return null;
-    
+    return session.enrichedPersona || null;
   } catch (error) {
-    logger.error('Failed to get enriched persona', {
-      sessionId,
-      error: error.message
-    });
+    console.error('Error getting enriched persona:', error);
     return null;
   }
 }
 
 /**
- * Save persona card to Supabase database
+ * Generate fallback enrichment if AI parsing fails
  */
-async function savePersonaCardToSupabase(personaCard) {
-  if (!supabase) {
-    console.warn('Supabase not configured, falling back to file storage');
-    return await savePersonaCardToFile(personaCard);
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('persona_cards')
-      .insert([{
-        session_id: personaCard.sessionId,
-        base_persona: personaCard.basePersona,
-        archetype_name: personaCard.archetypeName,
-        short_description: personaCard.shortDescription,
-        elevator_pitch: personaCard.elevatorPitch,
-        top_strengths: personaCard.topStrengths,
-        suggested_roles: personaCard.suggestedRoles,
-        next_steps: personaCard.nextSteps,
-        motivational_insight: personaCard.motivationalInsight,
-        assessment_anchors: personaCard.assessmentAnchors,
-        version: personaCard.version
-      }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.warn('Supabase insert failed, falling back to file storage:', error.message);
-      return await savePersonaCardToFile(personaCard);
-    }
-    
-    console.log(`✓ Persona card saved to Supabase: ${data.id}`);
-    return data;
-    
-  } catch (error) {
-    console.warn('Supabase error, falling back to file storage:', error.message);
-    return await savePersonaCardToFile(personaCard);
-  }
-}
-
-/**
- * Save persona card to file system
- */
-async function savePersonaCardToFile(personaCard) {
-  try {
-    const filename = `${personaCard.sessionId}-${personaCard.basePersona.key}.json`;
-    const filepath = path.join(PERSONA_CARDS_DIR, filename);
-    
-    await fs.writeFile(filepath, JSON.stringify(personaCard, null, 2), 'utf8');
-    console.log(`✓ Persona card saved to ${filename}`);
-    
-  } catch (error) {
-    console.warn(`Failed to save persona card to file: ${error.message}`);
-    // Don't throw - file saving is not critical
-  }
-}
-
-/**
- * Load persona card from Supabase database
- */
-async function loadPersonaCardFromSupabase(sessionId) {
-  if (!supabase) {
-    return await loadPersonaCardFromFile(sessionId);
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('persona_cards')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows found, try file fallback
-        return await loadPersonaCardFromFile(sessionId);
-      }
-      throw error;
-    }
-    
-    // Convert database format back to application format
-    return {
-      id: data.id,
-      sessionId: data.session_id,
-      basePersona: data.base_persona,
-      archetypeName: data.archetype_name,
-      shortDescription: data.short_description,
-      elevatorPitch: data.elevator_pitch,
-      topStrengths: data.top_strengths,
-      suggestedRoles: data.suggested_roles,
-      nextSteps: data.next_steps,
-      motivationalInsight: data.motivational_insight,
-      assessmentAnchors: data.assessment_anchors,
-      createdAt: data.created_at,
-      version: data.version
-    };
-    
-  } catch (error) {
-    console.warn('Supabase query failed, falling back to file storage:', error.message);
-    return await loadPersonaCardFromFile(sessionId);
-  }
-}
-
-/**
- * Load persona card from file system
- */
-async function loadPersonaCardFromFile(sessionId) {
-  try {
-    const files = await fs.readdir(PERSONA_CARDS_DIR);
-    const matchingFile = files.find(file => file.startsWith(sessionId));
-    
-    if (!matchingFile) {
-      return null;
-    }
-    
-    const filepath = path.join(PERSONA_CARDS_DIR, matchingFile);
-    const content = await fs.readFile(filepath, 'utf8');
-    const personaCard = JSON.parse(content);
-    
-    // Validate loaded data
-    const validation = validatePersonaCard(personaCard);
-    if (!validation.success) {
-      console.warn(`Invalid persona card file ${matchingFile}: ${validation.errors.map(e => e.message).join(', ')}`);
-      return null;
-    }
-    
-    return personaCard;
-    
-  } catch (error) {
-    console.warn(`Failed to load persona card from file: ${error.message}`);
-    return null;
-  }
-}
-
-/**
- * Clear persona card cache
- */
-export function clearPersonaCardCache() {
-  personaCardCache.clear();
-  console.log('✓ Persona card cache cleared');
-}
-
-/**
- * Get persona enrichment service health
- */
-export async function getPersonaEnrichmentHealth() {
-  const supabaseHealth = supabase ? await checkSupabaseHealth() : { healthy: false, reason: 'not_configured' };
-  
+function generateFallbackEnrichment(persona, careerInsights) {
   return {
-    cacheSize: personaCardCache.size,
-    storageDirectory: PERSONA_CARDS_DIR,
-    templateAvailable: true,
-    schemaValidation: true,
-    supabase: supabaseHealth,
-    fallbackStorage: 'file_system'
+    archetypeName: persona.primary.name,
+    shortDescription: `You are a ${persona.primary.name.toLowerCase()} who excels at ${persona.primary.traits.slice(0, 2).join(' and ')}.`,
+    elevatorPitch: `I'm a results-driven professional with strong ${persona.primary.traits[0]} and ${persona.primary.traits[1]} capabilities, passionate about creating meaningful impact through my work.`,
+    topStrengths: persona.primary.traits.slice(0, 6),
+    suggestedRoles: careerInsights.slice(0, 8).map(insight => insight.title),
+    nextSteps: [
+      'Explore opportunities in your areas of strength',
+      'Build relevant skills through courses or certifications',
+      'Network with professionals in your target field',
+      'Create a portfolio showcasing your capabilities'
+    ],
+    motivationalInsight: `Your ${persona.primary.name.toLowerCase()} nature gives you unique advantages in ${persona.primary.careerFit[0]} and related fields.`
   };
 }

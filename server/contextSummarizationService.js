@@ -1,286 +1,172 @@
-import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
-import OpenRouterAPI from './api/openrouter.js';
 import { getSession, saveSession } from './sessionService.js';
+import { aiRequest } from './aiService.js';
+import logger from './logger.js';
 
-// Initialize OpenRouter API
-const api = new OpenRouterAPI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  headers: {
-    referer: process.env.APP_URL || "http://localhost:3000",
-    title: "Atlas Career Coach - Context Summarization"
-  }
-});
-
-// Configuration
 const SUMMARIZATION_THRESHOLD = parseInt(process.env.SUMMARIZATION_THRESHOLD) || 15;
-const CONTEXT_WINDOW_SIZE = parseInt(process.env.CONTEXT_WINDOW_SIZE) || 6;
-const MAX_SUMMARY_LENGTH = parseInt(process.env.MAX_SUMMARY_LENGTH) || 500;
-const SUMMARIZATION_ENABLED = process.env.SUMMARIZATION_ENABLED !== 'false';
+const MESSAGES_TO_PRESERVE = parseInt(process.env.MESSAGES_TO_PRESERVE) || 6;
 
 /**
  * Check if summarization should be triggered
- * @param {Object} session - Session object
- * @returns {boolean} Whether summarization should be triggered
  */
 export function shouldTriggerSummarization(session) {
-  if (!SUMMARIZATION_ENABLED) {
+  if (!session.history || session.history.length < SUMMARIZATION_THRESHOLD) {
     return false;
   }
   
-  if (!session.history || !Array.isArray(session.history)) {
-    return false;
+  // Don't summarize if we already have a recent summary
+  if (session.lastSummarizedAt) {
+    const lastSummary = new Date(session.lastSummarizedAt);
+    const now = new Date();
+    const hoursSinceLastSummary = (now - lastSummary) / (1000 * 60 * 60);
+    
+    // Only summarize if it's been more than 1 hour and we have new messages
+    if (hoursSinceLastSummary < 1) {
+      return false;
+    }
   }
   
-  // Check message count threshold
-  const messageCount = session.history.length;
-  if (messageCount <= SUMMARIZATION_THRESHOLD) {
-    return false;
-  }
-  
-  // Check if we already have a recent summary
-  const lastSummaryTime = session.lastSummarizedAt ? new Date(session.lastSummarizedAt) : null;
-  const now = new Date();
-  const timeSinceLastSummary = lastSummaryTime ? (now - lastSummaryTime) / (1000 * 60) : Infinity; // minutes
-  
-  // For testing purposes, allow summarization if message count significantly exceeds threshold
-  // even if time constraint isn't met
-  const messageCountExceedsThresholdSignificantly = messageCount > (SUMMARIZATION_THRESHOLD * 2);
-  
-  // Don't summarize if we summarized less than 10 minutes ago, unless message count is very high
-  if (timeSinceLastSummary < 10 && !messageCountExceedsThresholdSignificantly) {
-    return false;
-  }
-  
-  console.log(`Summarization triggered: ${messageCount} messages (threshold: ${SUMMARIZATION_THRESHOLD})`);
   return true;
 }
 
 /**
- * Estimate token count for messages
- * @param {Array} messages - Array of message objects
- * @returns {number} Estimated token count
- */
-export function estimateTokenCount(messages) {
-  if (!Array.isArray(messages)) return 0;
-  
-  const totalChars = messages.reduce((total, msg) => {
-    return total + (msg.content ? msg.content.length : 0);
-  }, 0);
-  
-  // Rough approximation: 1 token ≈ 4 characters
-  return Math.ceil(totalChars / 4);
-}
-
-/**
- * Perform context summarization using template-based prompts
- * @param {string} sessionId - Session identifier
- * @returns {Object} Summarization result
+ * Perform context summarization
  */
 export async function performContextSummarization(sessionId) {
-  console.log(`\n=== Performing Context Summarization for session ${sessionId} ===`);
+  console.log(`Starting context summarization for session ${sessionId}`);
   
   try {
     const session = await getSession(sessionId);
     
     if (!shouldTriggerSummarization(session)) {
-      console.log('Summarization not needed or disabled');
-      return { summarized: false, reason: 'threshold_not_met' };
+      return {
+        summarized: false,
+        reason: 'Summarization not needed',
+        messageCount: session.history?.length || 0
+      };
     }
     
-    // Load summarization template
-    const template = await loadPromptTemplate('summaryPrompt');
-    
-    // Prepare messages for summarization (exclude the most recent ones)
-    const messagesToSummarize = session.history.slice(0, -CONTEXT_WINDOW_SIZE);
-    const recentMessages = session.history.slice(-CONTEXT_WINDOW_SIZE);
-    
-    if (messagesToSummarize.length === 0) {
-      console.log('No messages to summarize after preserving recent context');
-      return { summarized: false, reason: 'insufficient_messages' };
-    }
-    
-    // Format messages for the template
-    const formattedMessages = messagesToSummarize
-      .map(msg => `${msg.role}: ${msg.content}`)
-      .join('\n');
-    
-    // Interpolate template with conversation data
-    const summaryPrompt = interpolateTemplate(template, {
-      recentMessages: formattedMessages,
-      sessionId: sessionId,
-      messageCount: messagesToSummarize.length,
-      currentSection: session.currentSection || 'unknown',
-      totalQuestions: session.totalQuestions || 0
+    // Build summarization prompt
+    const messagesToSummarize = session.history.slice(0, -MESSAGES_TO_PRESERVE);
+    const summaryPrompt = `Please provide a concise summary of this career coaching conversation, focusing on:
+1. Key insights about the user's interests, skills, and preferences
+2. Important career-related decisions or discoveries
+3. Assessment progress and persona insights
+4. Any specific goals, concerns, or next steps mentioned
+
+Conversation to summarize:
+${messagesToSummarize.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+Provide a structured summary in 4-5 bullet points that captures the essential information for continuing the conversation.`;
+
+    // Get AI summary (use a simple system message to avoid recursion)
+    const summaryResponse = await aiRequest(sessionId, summaryPrompt, {
+      systemInstructions: 'You are a helpful assistant that summarizes career coaching conversations concisely and accurately.',
+      skipContextBuilding: true // Flag to avoid infinite recursion
     });
     
-    // Prepare API call
-    const messages = [
-      {
-        role: 'system',
-        content: 'You are a helpful assistant that creates concise, structured summaries of career coaching conversations. Focus on key insights, decisions, and progress made.'
-      },
-      {
-        role: 'user',
-        content: summaryPrompt
-      }
-    ];
-    
-    console.log(`Summarizing ${messagesToSummarize.length} messages, preserving ${recentMessages.length} recent messages`);
-    
-    // Make API call
-    const response = await api.getChatCompletion(messages);
-    
-    if (!response?.choices?.[0]?.message?.content) {
-      throw new Error('Invalid summarization API response');
-    }
-    
-    const newSummary = response.choices[0].message.content.trim();
-    
-    // Validate summary length
-    if (newSummary.length > MAX_SUMMARY_LENGTH) {
-      console.warn(`Summary length (${newSummary.length}) exceeds maximum (${MAX_SUMMARY_LENGTH}), truncating`);
-      const truncatedSummary = newSummary.substring(0, MAX_SUMMARY_LENGTH - 3) + '...';
-      session.summary = truncatedSummary;
-    } else {
-      session.summary = newSummary;
-    }
-    
-    // Combine with existing summary if present
-    if (session.previousSummary) {
-      session.summary = `${session.previousSummary}\n\n--- Recent Activity ---\n${session.summary}`;
+    if (summaryResponse.content) {
+      // Update session with summary
+      const previousSummary = session.summary;
+      session.summary = summaryResponse.content;
+      session.lastSummarizedAt = new Date().toISOString();
       
-      // If combined summary is too long, keep only the recent part
-      if (session.summary.length > MAX_SUMMARY_LENGTH * 2) {
-        session.previousSummary = null; // Clear old summary
-        session.summary = newSummary;
+      // Keep only recent messages
+      const recentMessages = session.history.slice(-MESSAGES_TO_PRESERVE);
+      const messagesPruned = session.history.length - recentMessages.length;
+      session.history = recentMessages;
+      
+      // If we had a previous summary, combine them
+      if (previousSummary) {
+        session.summary = `Previous context: ${previousSummary}\n\nRecent updates: ${summaryResponse.content}`;
       }
+      
+      await saveSession(sessionId, session);
+      
+      console.log(`✓ Context summarized for session ${sessionId}: ${messagesPruned} messages pruned`);
+      
+      return {
+        summarized: true,
+        messagesPruned: messagesPruned,
+        messagesPreserved: recentMessages.length,
+        summaryLength: summaryResponse.content.length
+      };
+    } else {
+      throw new Error('Empty summary response');
     }
-    
-    // Update session with pruned history
-    session.history = recentMessages;
-    session.lastSummarizedAt = new Date().toISOString();
-    session.summarizationCount = (session.summarizationCount || 0) + 1;
-    
-    // Store the previous summary for potential chaining
-    if (!session.previousSummary && session.summarizationCount > 1) {
-      session.previousSummary = session.summary;
-    }
-    
-    // Save updated session
-    await saveSession(sessionId, session);
-    
-    const tokensUsed = response.usage?.total_tokens || 0;
-    const messagesPruned = messagesToSummarize.length;
-    
-    console.log(`✓ Context summarization completed:`);
-    console.log(`  - Messages pruned: ${messagesPruned}`);
-    console.log(`  - Messages preserved: ${recentMessages.length}`);
-    console.log(`  - Summary length: ${session.summary.length} chars`);
-    console.log(`  - Tokens used: ${tokensUsed}`);
-    console.log(`  - Summarization count: ${session.summarizationCount}`);
-    
-    return {
-      summarized: true,
-      messagesPruned,
-      messagesPreserved: recentMessages.length,
-      summaryLength: session.summary.length,
-      tokensUsed,
-      summarizationCount: session.summarizationCount
-    };
     
   } catch (error) {
-    console.error(`❌ Context summarization failed for session ${sessionId}:`, error.message);
-    
-    // Don't throw - summarization failure shouldn't break the main flow
+    console.error(`Failed to summarize context for session ${sessionId}:`, error.message);
     return {
       summarized: false,
       error: error.message,
-      reason: 'api_error'
+      messageCount: 0
     };
   }
 }
 
 /**
+ * Force summarization (for admin/debug purposes)
+ */
+export async function forceSummarization(sessionId) {
+  console.log(`Forcing context summarization for session ${sessionId}`);
+  
+  const session = await getSession(sessionId);
+  
+  // Temporarily override the threshold check
+  const originalThreshold = SUMMARIZATION_THRESHOLD;
+  const originalLastSummarized = session.lastSummarizedAt;
+  
+  // Force summarization by clearing last summarized timestamp
+  session.lastSummarizedAt = null;
+  
+  try {
+    const result = await performContextSummarization(sessionId);
+    return {
+      ...result,
+      forced: true
+    };
+  } finally {
+    // Restore original values if summarization failed
+    if (!result?.summarized) {
+      session.lastSummarizedAt = originalLastSummarized;
+      await saveSession(sessionId, session);
+    }
+  }
+}
+
+/**
  * Get summarization statistics for a session
- * @param {string} sessionId - Session identifier
- * @returns {Object} Summarization statistics
  */
 export async function getSummarizationStats(sessionId) {
   try {
     const session = await getSession(sessionId);
     
     return {
-      sessionId,
-      currentMessageCount: session.history ? session.history.length : 0,
+      sessionId: sessionId,
+      messageCount: session.history?.length || 0,
       hasSummary: !!session.summary,
-      summaryLength: session.summary ? session.summary.length : 0,
-      lastSummarizedAt: session.lastSummarizedAt || null,
-      summarizationCount: session.summarizationCount || 0,
-      thresholdMet: shouldTriggerSummarization(session),
-      estimatedTokens: estimateTokenCount(session.history || []),
-      configuration: {
-        threshold: SUMMARIZATION_THRESHOLD,
-        contextWindowSize: CONTEXT_WINDOW_SIZE,
-        maxSummaryLength: MAX_SUMMARY_LENGTH,
-        enabled: SUMMARIZATION_ENABLED
-      }
+      summaryLength: session.summary?.length || 0,
+      lastSummarizedAt: session.lastSummarizedAt,
+      shouldSummarize: shouldTriggerSummarization(session),
+      threshold: SUMMARIZATION_THRESHOLD,
+      preserveCount: MESSAGES_TO_PRESERVE
     };
   } catch (error) {
-    console.error(`Failed to get summarization stats for session ${sessionId}:`, error.message);
-    throw error;
+    return {
+      sessionId: sessionId,
+      error: error.message
+    };
   }
 }
 
 /**
- * Force summarization for a session (admin function)
- * @param {string} sessionId - Session identifier
- * @returns {Object} Summarization result
- */
-export async function forceSummarization(sessionId) {
-  console.log(`Force summarization requested for session ${sessionId}`);
-  
-  const session = await getSession(sessionId);
-  
-  // Temporarily override the threshold check
-  const originalThreshold = session.history ? session.history.length : 0;
-  session.history = session.history || [];
-  
-  // Add enough dummy messages to trigger summarization if needed
-  while (session.history.length <= SUMMARIZATION_THRESHOLD) {
-    session.history.push({
-      role: 'system',
-      content: '[Padding message for forced summarization]',
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  await saveSession(sessionId, session);
-  
-  const result = await performContextSummarization(sessionId);
-  
-  // Clean up dummy messages if summarization succeeded
-  if (result.summarized) {
-    const updatedSession = await getSession(sessionId);
-    updatedSession.history = updatedSession.history.filter(
-      msg => msg.content !== '[Padding message for forced summarization]'
-    );
-    await saveSession(sessionId, updatedSession);
-  }
-  
-  return { ...result, forced: true };
-}
-
-/**
- * Get context summarization service health
- * @returns {Object} Service health information
+ * Get summarization service health
  */
 export function getContextSummarizationHealth() {
   return {
-    enabled: SUMMARIZATION_ENABLED,
+    enabled: process.env.SUMMARIZATION_ENABLED !== 'false',
     threshold: SUMMARIZATION_THRESHOLD,
-    contextWindowSize: CONTEXT_WINDOW_SIZE,
-    maxSummaryLength: MAX_SUMMARY_LENGTH,
-    apiConfigured: !!process.env.OPENROUTER_API_KEY,
-    templateAvailable: true // We'll assume template loading works if we get here
+    preserveCount: MESSAGES_TO_PRESERVE,
+    status: 'active'
   };
 }

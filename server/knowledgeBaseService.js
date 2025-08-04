@@ -2,16 +2,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { pipeline } from '@xenova/transformers';
-import csv from 'csv-parser';
-import { createReadStream } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 class KnowledgeBaseService {
   constructor() {
-    this.embeddings = null;
     this.careerData = [];
     this.isInitialized = false;
   }
@@ -20,9 +16,6 @@ class KnowledgeBaseService {
     if (this.isInitialized) return;
     
     console.log('Initializing knowledge base...');
-    
-    // Load embedding model
-    this.embeddings = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
     
     // Load O*NET career data
     await this.loadCareerData();
@@ -47,7 +40,8 @@ class KnowledgeBaseService {
         education: 'Bachelor\'s degree',
         salary: '$107,510',
         growth: '22% (Much faster than average)',
-        workEnvironment: 'Office setting, collaborative teams, flexible hours'
+        workEnvironment: 'Office setting, collaborative teams, flexible hours',
+        keywords: ['programming', 'software', 'development', 'coding', 'applications', 'systems']
       },
       {
         id: '15-1244.00',
@@ -62,7 +56,8 @@ class KnowledgeBaseService {
         education: 'Bachelor\'s degree or equivalent experience',
         salary: '$84,810',
         growth: '4% (As fast as average)',
-        workEnvironment: 'Office and server rooms, on-call availability, problem-solving focus'
+        workEnvironment: 'Office and server rooms, on-call availability, problem-solving focus',
+        keywords: ['network', 'systems', 'administration', 'security', 'infrastructure', 'support']
       },
       {
         id: '15-1299.08',
@@ -77,40 +72,87 @@ class KnowledgeBaseService {
         education: 'Bachelor\'s degree in Computer Science or Engineering',
         salary: '$116,780',
         growth: '5% (As fast as average)',
-        workEnvironment: 'Collaborative office environment, strategic planning, technical leadership'
+        workEnvironment: 'Collaborative office environment, strategic planning, technical leadership',
+        keywords: ['architecture', 'systems', 'design', 'engineering', 'leadership', 'integration']
+      },
+      {
+        id: '15-1134.00',
+        title: 'Web Developers',
+        description: 'Design and create websites. May be responsible for the site\'s technical aspects, such as its performance and capacity.',
+        tasks: [
+          'Design and develop websites and web applications',
+          'Write well designed, testable, efficient code',
+          'Integrate data from various back-end services and databases'
+        ],
+        skills: ['Web Development', 'HTML/CSS', 'JavaScript', 'User Experience Design'],
+        education: 'Associate degree or equivalent experience',
+        salary: '$77,200',
+        growth: '8% (Much faster than average)',
+        workEnvironment: 'Creative environment, client interaction, project-based work',
+        keywords: ['web', 'frontend', 'backend', 'javascript', 'html', 'css', 'websites']
+      },
+      {
+        id: '15-1121.00',
+        title: 'Computer Systems Analysts',
+        description: 'Analyze science, engineering, business, and other data processing problems to implement and improve computer systems.',
+        tasks: [
+          'Analyze data processing problems to improve computer systems',
+          'Study current computer systems and procedures',
+          'Design solutions to help organizations operate more efficiently'
+        ],
+        skills: ['Systems Analysis', 'Problem Solving', 'Business Analysis', 'Technical Communication'],
+        education: 'Bachelor\'s degree',
+        salary: '$93,730',
+        growth: '7% (Faster than average)',
+        workEnvironment: 'Business environment, cross-functional collaboration, analytical work',
+        keywords: ['analysis', 'systems', 'business', 'data', 'efficiency', 'solutions']
       }
     ];
-
-    // Generate embeddings for career data
-    for (const career of this.careerData) {
-      const text = `${career.title} ${career.description} ${career.skills.join(' ')}`;
-      career.embedding = await this.embeddings(text, { pooling: 'mean', normalize: true });
-    }
   }
 
   async searchCareers(query, limit = 5) {
     if (!this.isInitialized) await this.initialize();
     
-    // Generate query embedding
-    const queryEmbedding = await this.embeddings(query, { pooling: 'mean', normalize: true });
+    const queryLower = query.toLowerCase();
+    const queryWords = queryLower.split(' ').filter(word => word.length > 2);
     
-    // Calculate similarities
-    const similarities = this.careerData.map(career => ({
-      ...career,
-      similarity: this.cosineSimilarity(queryEmbedding.data, career.embedding.data)
-    }));
+    // Calculate similarities based on keyword matching
+    const similarities = this.careerData.map(career => {
+      let score = 0;
+      
+      // Check title match
+      if (career.title.toLowerCase().includes(queryLower)) {
+        score += 0.5;
+      }
+      
+      // Check description match
+      if (career.description.toLowerCase().includes(queryLower)) {
+        score += 0.3;
+      }
+      
+      // Check keyword matches
+      const keywordMatches = career.keywords.filter(keyword => 
+        queryWords.some(word => keyword.includes(word) || word.includes(keyword))
+      );
+      score += keywordMatches.length * 0.2;
+      
+      // Check skills match
+      const skillMatches = career.skills.filter(skill => 
+        queryWords.some(word => skill.toLowerCase().includes(word))
+      );
+      score += skillMatches.length * 0.1;
+      
+      return {
+        ...career,
+        similarity: Math.min(score, 1.0) // Cap at 1.0
+      };
+    });
     
     // Sort by similarity and return top results
     return similarities
+      .filter(career => career.similarity > 0)
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
-  }
-
-  cosineSimilarity(a, b) {
-    const dotProduct = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
-    const magnitudeA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
-    const magnitudeB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
-    return dotProduct / (magnitudeA * magnitudeB);
   }
 
   async getCareerInsights(persona, interests) {
