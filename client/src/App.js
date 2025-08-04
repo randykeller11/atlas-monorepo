@@ -490,6 +490,10 @@ function AppContent() {
       setUserName('Randy Keller');
       setPersona(demoData.persona);
       setPersonaCard(demoData.personaCard);
+      
+      // Force show services immediately for demo
+      console.log('Setting personaCard for demo:', demoData.personaCard);
+      
       setAssessmentProgress({
         questionsCompleted: demoData.assessmentProgress.questionsCompleted,
         totalQuestions: demoData.assessmentProgress.totalQuestions,
