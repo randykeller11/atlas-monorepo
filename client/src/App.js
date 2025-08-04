@@ -516,6 +516,7 @@ function AppContent() {
       setSessionId(demoData.sessionId);
       
       console.log('✓ Demo data loaded successfully for Randy Keller');
+      console.log('✓ PersonaCard set:', !!demoData.personaCard);
     } catch (error) {
       console.error('❌ Failed to load demo data:', error);
       alert(`Failed to load demo data: ${error.message}`);
@@ -692,6 +693,34 @@ function AppContent() {
                 onViewPersona={handleViewPersonaCard}
                 hasPersona={!!persona}
               />
+
+              {/* Temporary test buttons for Randy */}
+              {userName === 'Randy Keller' && (
+                <div style={{
+                  margin: '20px 0',
+                  padding: '15px',
+                  background: '#f0f8ff',
+                  border: '2px solid #4169e1',
+                  borderRadius: '8px'
+                }}>
+                  <h4>🧪 Randy Demo - Test Services</h4>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => setShowSimulator(true)} style={{padding: '8px 16px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px'}}>
+                      Test Simulator
+                    </button>
+                    <button onClick={() => setShowResumeGenerator(true)} style={{padding: '8px 16px', background: '#2196f3', color: 'white', border: 'none', borderRadius: '4px'}}>
+                      Test Resume
+                    </button>
+                    <button onClick={() => setShowImpactDashboard(true)} style={{padding: '8px 16px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '4px'}}>
+                      Test Dashboard
+                    </button>
+                  </div>
+                  <p style={{margin: '10px 0 0 0', fontSize: '0.9rem', color: '#666'}}>
+                    PersonaCard exists: {personaCard ? '✅ Yes' : '❌ No'} | 
+                    Persona exists: {persona ? '✅ Yes' : '❌ No'}
+                  </p>
+                </div>
+              )}
               
               {persona && !showPersonaCard && (
                 <PersonaPreview
@@ -701,12 +730,22 @@ function AppContent() {
                 />
               )}
               
+              {/* Debug logging */}
+              {console.log('Debug - personaCard exists:', !!personaCard)}
+              {console.log('Debug - userName:', userName)}
+              {console.log('Debug - showWelcome:', showWelcome)}
+
               {/* Enhanced Services Dashboard */}
-              {personaCard && (
+              {(personaCard || (userName === 'Randy Keller' && !showWelcome)) && (
                 <div className="services-dashboard">
                   <div className="services-header">
                     <h3>🚀 Explore Your Career Journey</h3>
                     <p>Now that you have your persona card, try these powerful career tools:</p>
+                    {!personaCard && userName === 'Randy Keller' && (
+                      <p style={{color: '#ff9800', fontWeight: 'bold'}}>
+                        Demo Mode: Services available for Randy Keller
+                      </p>
+                    )}
                   </div>
                   
                   <div className="services-status">
