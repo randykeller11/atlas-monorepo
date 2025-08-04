@@ -739,12 +739,39 @@ function AppContent() {
               {console.log('Debug - userName:', userName)}
               {console.log('Debug - showWelcome:', showWelcome)}
 
-              {/* Enhanced Services Dashboard */}
+              {/* Debug check - temporary visibility test */}
               {(personaCard || (userName === 'Randy Keller' && !showWelcome)) && (
-                <div className="services-dashboard">
-                  <div className="services-header">
-                    <h3>🚀 Explore Your Career Journey</h3>
-                    <p>Now that you have your persona card, try these powerful career tools:</p>
+                <div style={{
+                  background: 'red', 
+                  color: 'white', 
+                  padding: '10px', 
+                  margin: '10px 0',
+                  fontSize: '16px',
+                  fontWeight: 'bold'
+                }}>
+                  🔍 DEBUG: Services dashboard should render here - PersonaCard: {personaCard ? 'YES' : 'NO'}
+                </div>
+              )}
+
+              {/* Enhanced Services Dashboard with inline styles for debugging */}
+              {(personaCard || (userName === 'Randy Keller' && !showWelcome)) && (
+                <div style={{
+                  margin: '30px 0',
+                  padding: '30px',
+                  background: 'linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%)',
+                  borderRadius: '16px',
+                  border: '1px solid #e3f2fd',
+                  boxShadow: '0 4px 20px rgba(102, 126, 234, 0.1)',
+                  display: 'block',
+                  visibility: 'visible'
+                }}>
+                  <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <h3 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '1.5rem', fontWeight: '600' }}>
+                      🚀 Explore Your Career Journey
+                    </h3>
+                    <p style={{ margin: '0', color: '#666', fontSize: '1rem', lineHeight: '1.5' }}>
+                      Now that you have your persona card, try these powerful career tools:
+                    </p>
                     {!personaCard && userName === 'Randy Keller' && (
                       <p style={{color: '#ff9800', fontWeight: 'bold'}}>
                         Demo Mode: Services available for Randy Keller
@@ -752,26 +779,40 @@ function AppContent() {
                     )}
                   </div>
                   
-                  <div className="services-status">
-                    <div className="status-item available">
-                      <span className="status-dot"></span>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '15px',
+                    marginBottom: '25px',
+                    padding: '20px',
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    borderRadius: '8px',
+                    border: '1px solid #e0e0e0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: '#2e7d32' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50' }}></span>
                       <span>Persona Analysis Complete</span>
                     </div>
-                    <div className="status-item available">
-                      <span className="status-dot"></span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: '#2e7d32' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50' }}></span>
                       <span>Career Simulator Ready</span>
                     </div>
-                    <div className="status-item available">
-                      <span className="status-dot"></span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: '#2e7d32' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50' }}></span>
                       <span>Resume Generator Active</span>
                     </div>
-                    <div className="status-item available">
-                      <span className="status-dot"></span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', color: '#2e7d32' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50' }}></span>
                       <span>Impact Dashboard Available</span>
                     </div>
                   </div>
                   
-                  <div className="services-grid">
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: '20px',
+                    marginBottom: '20px'
+                  }}>
                     <div className={`service-card simulator ${completedServices.simulator ? 'completed' : ''}`} onClick={() => setShowSimulator(true)}>
                       <div className="service-icon">🎮</div>
                       <div className="service-content">
