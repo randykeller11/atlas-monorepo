@@ -17,6 +17,7 @@ import AssessmentProgress from "./components/AssessmentProgress";
 import DayInLifeSimulator from './components/DayInLifeSimulator';
 import ResumeGenerator from './components/ResumeGenerator';
 import ImpactDashboard from './components/ImpactDashboard';
+import DemoLandingPage from './components/DemoLandingPage';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 export const HamburgerMenu = ({ isOpen, toggleMenu }) => {
@@ -680,6 +681,47 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/admin" element={<Admin />} />
+      
+      {/* New Phase 2 Feature Routes */}
+      <Route path="/simulator" element={
+        <div className="feature-page">
+          <DayInLifeSimulator
+            onClose={() => window.history.back()}
+            personaCard={personaCard}
+            sessionId={sessionId}
+          />
+        </div>
+      } />
+      
+      <Route path="/resume-generator" element={
+        <div className="feature-page">
+          <ResumeGenerator
+            onClose={() => window.history.back()}
+            personaCard={personaCard}
+            sessionId={sessionId}
+          />
+        </div>
+      } />
+      
+      <Route path="/dashboard" element={
+        <div className="feature-page">
+          <ImpactDashboard
+            onClose={() => window.history.back()}
+          />
+        </div>
+      } />
+      
+      {/* Demo route that loads Randy's data and shows features */}
+      <Route path="/demo" element={
+        <DemoLandingPage 
+          onFeatureSelect={(feature) => {
+            if (feature === 'simulator') window.location.href = '/simulator';
+            if (feature === 'resume') window.location.href = '/resume-generator';
+            if (feature === 'dashboard') window.location.href = '/dashboard';
+          }}
+        />
+      } />
+      
       <Route
         path="/"
         element={
@@ -724,7 +766,7 @@ function AppContent() {
                     marginBottom: '30px'
                   }}>
                     <button 
-                      onClick={() => setShowSimulator(true)} 
+                      onClick={() => window.location.href = '/simulator'} 
                       style={{
                         padding: '30px 40px',
                         background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
@@ -754,13 +796,13 @@ function AppContent() {
                       <div>
                         <div>Day-in-Life Simulator</div>
                         <div style={{ fontSize: '1rem', opacity: '0.9', fontWeight: 'normal' }}>
-                          Interactive Help Desk Scenarios
+                          /simulator
                         </div>
                       </div>
                     </button>
                     
                     <button 
-                      onClick={() => setShowResumeGenerator(true)} 
+                      onClick={() => window.location.href = '/resume-generator'} 
                       style={{
                         padding: '30px 40px',
                         background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
@@ -790,13 +832,13 @@ function AppContent() {
                       <div>
                         <div>AI Resume Generator</div>
                         <div style={{ fontSize: '1rem', opacity: '0.9', fontWeight: 'normal' }}>
-                          Persona-Optimized Resumes
+                          /resume-generator
                         </div>
                       </div>
                     </button>
                     
                     <button 
-                      onClick={() => setShowImpactDashboard(true)} 
+                      onClick={() => window.location.href = '/dashboard'} 
                       style={{
                         padding: '30px 40px',
                         background: 'linear-gradient(135deg, #a8edea, #fed6e3)',
@@ -826,7 +868,7 @@ function AppContent() {
                       <div>
                         <div>Impact Dashboard</div>
                         <div style={{ fontSize: '1rem', opacity: '0.8', fontWeight: 'normal' }}>
-                          Analytics & Success Metrics
+                          /dashboard
                         </div>
                       </div>
                     </button>
@@ -1172,6 +1214,23 @@ const keyframes = `
   }
 `;
 
+const featurePageStyles = `
+  .feature-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.8);
+  }
+  
+  .feature-page > div {
+    position: relative;
+    z-index: 2001;
+  }
+`;
+
 const globalStyles = `
   body {
     margin: 0;
@@ -1427,6 +1486,6 @@ const globalStyles = `
 `;
 
 const styleSheet = document.createElement("style");
-styleSheet.textContent = keyframes + globalStyles;
+styleSheet.textContent = keyframes + globalStyles + featurePageStyles;
 document.head.appendChild(styleSheet);
 export default App;
