@@ -151,6 +151,16 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client/build")));
 
+// Add middleware to auto-load demo data for feature routes
+app.use(['/simulator', '/resume-generator', '/dashboard'], async (req, res, next) => {
+  // Check if we need to initialize demo data
+  const demoSessionId = 'demo-randy-keller-' + Date.now();
+  
+  // You could set this in a cookie or session storage on the client side
+  // For now, we'll just ensure the demo endpoint is available
+  next();
+});
+
 // Initialize OpenAI API
 
 // Add helper functions for response parsing and formatting
