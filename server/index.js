@@ -2034,6 +2034,138 @@ app.get('/api/admin/debug/tokens', async (req, res) => {
   }
 });
 
+// Day-in-Life Simulator endpoints
+app.post('/api/simulator/:sessionId/start', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { simulationType } = req.body;
+    
+    const simulationData = {
+      sessionId,
+      type: simulationType || 'help-desk-tech',
+      startedAt: new Date().toISOString(),
+      currentScenario: 0,
+      score: 0,
+      customerSatisfaction: 85,
+      scenarios: getSimulationScenarios(simulationType),
+      kpis: {
+        timeElapsed: 0,
+        scenariosCompleted: 0,
+        averageResponseTime: 0,
+        customerSatisfactionTrend: [85]
+      }
+    };
+    
+    // Store simulation state in session
+    const session = await getSession(sessionId);
+    session.currentSimulation = simulationData;
+    await saveSession(sessionId, session);
+    
+    res.json(simulationData);
+  } catch (error) {
+    console.error('Error starting simulation:', error);
+    res.status(500).json({ error: 'Failed to start simulation' });
+  }
+});
+
+app.post('/api/simulator/:sessionId/respond', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { scenarioId, choiceId, responseTime } = req.body;
+    
+    const session = await getSession(sessionId);
+    const simulation = session.currentSimulation;
+    
+    if (!simulation) {
+      return res.status(404).json({ error: 'No active simulation found' });
+    }
+    
+    // Process the response
+    const scenario = simulation.scenarios[simulation.currentScenario];
+    const choice = scenario.choices.find(c => c.id === choiceId);
+    
+    if (!choice) {
+      return res.status(400).json({ error: 'Invalid choice' });
+    }
+    
+    // Update simulation state
+    simulation.score += choice.score;
+    simulation.customerSatisfaction = Math.max(0, Math.min(100, 
+      simulation.customerSatisfaction + choice.impact.satisfaction
+    ));
+    simulation.kpis.timeElapsed += responseTime || 30;
+    simulation.kpis.scenariosCompleted += 1;
+    simulation.kpis.customerSatisfactionTrend.push(simulation.customerSatisfaction);
+    
+    // Generate NPC response using AI
+    const npcResponse = await generateNPCResponse(scenario, choice, sessionId);
+    
+    // Move to next scenario
+    simulation.currentScenario += 1;
+    const isComplete = simulation.currentScenario >= simulation.scenarios.length;
+    
+    if (isComplete) {
+      simulation.completedAt = new Date().toISOString();
+      simulation.finalScore = simulation.score;
+      simulation.performance = calculatePerformanceRating(simulation);
+    }
+    
+    await saveSession(sessionId, session);
+    
+    res.json({
+      feedback: choice.feedback,
+      npcResponse,
+      scoreChange: choice.score,
+      satisfactionChange: choice.impact.satisfaction,
+      currentScore: simulation.score,
+      currentSatisfaction: simulation.customerSatisfaction,
+      isComplete,
+      nextScenario: isComplete ? null : simulation.scenarios[simulation.currentScenario],
+      performance: isComplete ? simulation.performance : null
+    });
+    
+  } catch (error) {
+    console.error('Error processing simulation response:', error);
+    res.status(500).json({ error: 'Failed to process response' });
+  }
+});
+
+// Impact Dashboard endpoints
+app.get('/api/dashboard/metrics', async (req, res) => {
+  try {
+    const { timeRange = '30d' } = req.query;
+    
+    // In a real implementation, you'd query your database
+    // For now, return realistic demo data
+    const metrics = await generateDashboardMetrics(timeRange);
+    
+    res.json(metrics);
+  } catch (error) {
+    console.error('Error getting dashboard metrics:', error);
+    res.status(500).json({ error: 'Failed to get dashboard metrics' });
+  }
+});
+
+app.get('/api/dashboard/personas', async (req, res) => {
+  try {
+    const personaDistribution = await getPersonaDistribution();
+    res.json(personaDistribution);
+  } catch (error) {
+    console.error('Error getting persona distribution:', error);
+    res.status(500).json({ error: 'Failed to get persona distribution' });
+  }
+});
+
+app.get('/api/dashboard/outcomes', async (req, res) => {
+  try {
+    const outcomes = await getCareerOutcomes();
+    res.json(outcomes);
+  } catch (error) {
+    console.error('Error getting career outcomes:', error);
+    res.status(500).json({ error: 'Failed to get career outcomes' });
+  }
+});
+
 // Demo endpoint for Randy Keller
 app.get('/api/demo/randy-keller', async (req, res) => {
   try {
@@ -2128,6 +2260,228 @@ app.get('/api/demo/randy-keller', async (req, res) => {
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/build", "index.html"));
 });
+
+// Helper functions for simulator
+function getSimulationScenarios(type) {
+  // Return the scenarios from your DayInLifeSimulator component
+  return [
+    {
+      id: 1,
+      title: "Password Reset Request",
+      description: "Sarah from Marketing calls in frustrated. She's been locked out of her email for 2 hours and has an important client presentation in 30 minutes.",
+      customerMood: "frustrated",
+      difficulty: "easy",
+      choices: [
+        {
+          id: 'a',
+          text: "Immediately reset her password and send new credentials",
+          score: 15,
+          feedback: "Good quick response! You prioritized urgency and customer needs.",
+          impact: { time: -2, satisfaction: +10 }
+        },
+        {
+          id: 'b', 
+          text: "Ask her to verify identity with 3 security questions first",
+          score: 10,
+          feedback: "Security-conscious but may frustrate an already upset customer.",
+          impact: { time: +3, satisfaction: -5 }
+        },
+        {
+          id: 'c',
+          text: "Transfer her to the security team for proper verification",
+          score: 5,
+          feedback: "Following protocol but creating delays for urgent request.",
+          impact: { time: +8, satisfaction: -15 }
+        }
+      ]
+    },
+    {
+      id: 2,
+      title: "Software Installation Issue",
+      description: "John from Finance needs help installing new accounting software. He's not very tech-savvy and seems overwhelmed by the error messages.",
+      customerMood: "confused",
+      difficulty: "medium",
+      choices: [
+        {
+          id: 'a',
+          text: "Walk him through each step slowly and patiently",
+          score: 20,
+          feedback: "Excellent! Patient guidance builds confidence and ensures success.",
+          impact: { time: +5, satisfaction: +15 }
+        },
+        {
+          id: 'b',
+          text: "Send him a detailed email with installation steps",
+          score: 8,
+          feedback: "Efficient but may not help someone who's already overwhelmed.",
+          impact: { time: -1, satisfaction: -8 }
+        },
+        {
+          id: 'c',
+          text: "Remote into his computer and install it yourself",
+          score: 12,
+          feedback: "Quick solution but doesn't teach the user for next time.",
+          impact: { time: -3, satisfaction: +5 }
+        }
+      ]
+    },
+    {
+      id: 3,
+      title: "Network Connectivity Problem",
+      description: "The entire Sales department reports intermittent internet connectivity. This is affecting their ability to access the CRM system during peak sales hours.",
+      customerMood: "urgent",
+      difficulty: "hard",
+      choices: [
+        {
+          id: 'a',
+          text: "Escalate immediately to Network Operations Center",
+          score: 18,
+          feedback: "Smart escalation! Department-wide issues need specialized attention.",
+          impact: { time: +2, satisfaction: +12 }
+        },
+        {
+          id: 'b',
+          text: "Troubleshoot individual workstations one by one",
+          score: 6,
+          feedback: "Thorough but inefficient for a department-wide issue.",
+          impact: { time: +15, satisfaction: -10 }
+        },
+        {
+          id: 'c',
+          text: "Check network infrastructure and document findings",
+          score: 15,
+          feedback: "Good diagnostic approach, but may need faster escalation.",
+          impact: { time: +8, satisfaction: +5 }
+        }
+      ]
+    },
+    {
+      id: 4,
+      title: "Printer Malfunction",
+      description: "The main office printer is jamming constantly. Multiple employees are waiting to print important documents for today's board meeting.",
+      customerMood: "impatient",
+      difficulty: "medium",
+      choices: [
+        {
+          id: 'a',
+          text: "Guide users to alternative printers while you fix the main one",
+          score: 17,
+          feedback: "Great problem-solving! You minimized disruption while addressing the root cause.",
+          impact: { time: +3, satisfaction: +8 }
+        },
+        {
+          id: 'b',
+          text: "Focus entirely on fixing the main printer first",
+          score: 10,
+          feedback: "Focused approach but leaves users waiting unnecessarily.",
+          impact: { time: +6, satisfaction: -5 }
+        },
+        {
+          id: 'c',
+          text: "Call the printer vendor for immediate service",
+          score: 12,
+          feedback: "Good for complex issues, but this might be something you can handle.",
+          impact: { time: +10, satisfaction: +2 }
+        }
+      ]
+    }
+  ];
+}
+
+async function generateNPCResponse(scenario, choice, sessionId) {
+  try {
+    const prompt = `Generate a realistic customer response to this help desk interaction:
+    
+    Scenario: ${scenario.description}
+    Customer mood: ${scenario.customerMood}
+    Tech support action: ${choice.text}
+    
+    Generate a brief, realistic customer response (1-2 sentences) that reflects their mood and reaction to the support action.`;
+    
+    const response = await aiRequest(sessionId, prompt, {
+      systemInstructions: 'You are simulating customer responses in a help desk scenario. Be realistic and match the customer\'s emotional state.'
+    });
+    
+    return response.content;
+  } catch (error) {
+    console.error('Error generating NPC response:', error);
+    return "Thank you for your help.";
+  }
+}
+
+function calculatePerformanceRating(simulation) {
+  const score = simulation.score;
+  if (score >= 60) return { rating: 'Excellent', color: '#4caf50', description: 'Outstanding help desk performance!' };
+  if (score >= 45) return { rating: 'Good', color: '#2196f3', description: 'Solid technical support skills.' };
+  if (score >= 30) return { rating: 'Fair', color: '#ff9800', description: 'Room for improvement in customer service.' };
+  return { rating: 'Needs Improvement', color: '#f44336', description: 'Focus on customer-first approaches.' };
+}
+
+// Helper functions for dashboard
+async function generateDashboardMetrics(timeRange) {
+  // This would query your actual database in production
+  return {
+    totalUsers: 2847,
+    completionRate: 78.5,
+    avgSessionTime: '12:34',
+    personaCardsGenerated: 1456,
+    resumesCreated: 892,
+    simulationsCompleted: 634,
+    timeRange,
+    trends: {
+      userGrowth: generateTrendData(timeRange),
+      completionRates: [
+        { section: 'Introduction', rate: 95.2 },
+        { section: 'Interest Exploration', rate: 87.8 },
+        { section: 'Work Style', rate: 82.4 },
+        { section: 'Technical Aptitude', rate: 79.1 },
+        { section: 'Career Values', rate: 78.5 }
+      ]
+    }
+  };
+}
+
+async function getPersonaDistribution() {
+  return [
+    { type: 'The Builder', count: 412, percentage: 28.3, color: '#667eea' },
+    { type: 'The Explorer', count: 378, percentage: 26.0, color: '#f093fb' },
+    { type: 'The Connector', count: 289, percentage: 19.8, color: '#4facfe' },
+    { type: 'The Analyst', count: 234, percentage: 16.1, color: '#43e97b' },
+    { type: 'The Creator', count: 89, percentage: 6.1, color: '#fa709a' },
+    { type: 'The Leader', count: 54, percentage: 3.7, color: '#ffa726' }
+  ];
+}
+
+async function getCareerOutcomes() {
+  return {
+    jobApplications: 234,
+    interviewsScheduled: 89,
+    jobOffers: 23,
+    careerChanges: 45,
+    skillDevelopment: 567,
+    networkingConnections: 1234
+  };
+}
+
+function generateTrendData(timeRange) {
+  // Generate realistic trend data based on time range
+  const dataPoints = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+  const data = [];
+  let baseValue = 1200;
+  
+  for (let i = 0; i < dataPoints; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - (dataPoints - i));
+    baseValue += Math.floor(Math.random() * 50) + 10;
+    
+    data.push({
+      date: date.toISOString().split('T')[0],
+      users: baseValue
+    });
+  }
+  
+  return data;
+}
 
 const startServer = (port) => {
   try {

@@ -14,24 +14,104 @@ export class ResumeService {
     console.log(`Resume generation requested for session ${sessionId}`);
     
     const session = await getSession(sessionId);
-    const personaSummary = session.persona ? this.getPersonaSummary(session.persona) : null;
+    const personaCard = session.enrichedPersona || session.persona;
     
-    // Placeholder implementation
-    const resumeData = {
-      sessionId: sessionId,
+    if (!personaCard) {
+      throw new Error('No persona data available for resume generation');
+    }
+    
+    // Use AI to generate resume content based on persona
+    const resumePrompt = `Generate a professional resume based on this persona:
+    
+    Persona: ${personaCard.archetypeName || personaCard.primary?.name}
+    Strengths: ${(personaCard.topStrengths || personaCard.primary?.traits || []).join(', ')}
+    Target Role: ${options.targetRole || 'Software Engineer'}
+    Experience Level: ${options.experience || 'mid-level'}
+    
+    Generate realistic resume content including:
+    - Professional summary
+    - Work experience (2-3 positions)
+    - Skills section
+    - Education
+    - Projects (2-3 relevant projects)
+    
+    Format as JSON with sections: personalInfo, summary, experience, skills, education, projects`;
+    
+    try {
+      const { aiRequest } = await import('./aiService.js');
+      const response = await aiRequest(sessionId, resumePrompt, {
+        systemInstructions: 'Generate realistic, professional resume content based on the persona. Return valid JSON.',
+        expectedSchema: 'json_object'
+      });
+      
+      let resumeData;
+      try {
+        resumeData = JSON.parse(response.content);
+      } catch {
+        // Fallback to structured data if AI doesn't return JSON
+        resumeData = this.generateFallbackResume(personaCard, options);
+      }
+      
+      return {
+        sessionId,
+        generatedAt: new Date().toISOString(),
+        template: options.template || 'professional',
+        data: resumeData,
+        persona: personaCard.archetypeName || personaCard.primary?.name,
+        status: 'generated'
+      };
+      
+    } catch (error) {
+      console.error('Error generating AI resume:', error);
+      return this.generateFallbackResume(personaCard, options);
+    }
+  }
+
+  generateFallbackResume(personaCard, options) {
+    return {
+      sessionId: personaCard.sessionId,
       generatedAt: new Date().toISOString(),
-      persona: personaSummary,
-      assessmentData: {
-        sections: session.sections,
-        totalQuestions: session.totalQuestions,
-        currentSection: session.currentSection
+      template: options.template || 'professional',
+      data: {
+        personalInfo: {
+          name: 'Professional Name',
+          email: 'professional@email.com',
+          phone: '(555) 123-4567',
+          location: 'City, State',
+          linkedin: 'linkedin.com/in/professional'
+        },
+        summary: personaCard.elevatorPitch || personaCard.shortDescription || 'Results-driven professional with strong technical capabilities.',
+        experience: [
+          {
+            title: options.targetRole || 'Software Engineer',
+            company: 'Tech Company',
+            duration: '2021 - Present',
+            achievements: [
+              'Led development of scalable applications',
+              'Collaborated with cross-functional teams',
+              'Implemented best practices and code reviews'
+            ]
+          }
+        ],
+        skills: personaCard.topStrengths || personaCard.primary?.traits || ['Problem Solving', 'Technical Skills', 'Communication'],
+        education: [
+          {
+            degree: 'Bachelor of Science in Computer Science',
+            school: 'University Name',
+            year: '2020'
+          }
+        ],
+        projects: [
+          {
+            name: 'Portfolio Project',
+            description: 'Built a comprehensive application demonstrating technical skills',
+            technologies: ['JavaScript', 'React', 'Node.js']
+          }
+        ]
       },
-      template: options.template || this.selectTemplate(session),
-      status: 'placeholder'
+      persona: personaCard.archetypeName || personaCard.primary?.name,
+      status: 'generated'
     };
-    
-    console.log('Resume data prepared:', resumeData);
-    return resumeData;
   }
 
   getPersonaSummary(persona) {

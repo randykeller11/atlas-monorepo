@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import { z } from 'zod';
 import { loadPromptTemplate, interpolateTemplate } from './promptService.js';
 import { shouldTriggerSummarization, performContextSummarization } from './contextSummarizationService.js';
+import { knowledgeBaseService } from './knowledgeBaseService.js';
 import logger, { 
   logAIRequest, 
   logAIResponse, 
@@ -593,6 +594,43 @@ function parseUserResponse(input, expectedType) {
     content: input,
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * AI request with RAG capabilities
+ */
+export async function aiRequestWithRAG(sessionId, userInput, options = {}) {
+  const startTime = Date.now();
+  
+  try {
+    const session = await getSession(sessionId);
+    
+    // Get relevant career information using RAG
+    let careerContext = '';
+    if (session.persona && userInput.toLowerCase().includes('career')) {
+      const careerInsights = await knowledgeBaseService.getCareerInsights(
+        session.persona, 
+        session.anchors || []
+      );
+      
+      careerContext = `\n\nRelevant Career Information:\n${careerInsights.map(insight => 
+        `- ${insight.title}: ${insight.description} (${insight.match}% match)`
+      ).join('\n')}`;
+    }
+    
+    // Enhance system instructions with RAG context
+    const enhancedOptions = {
+      ...options,
+      systemInstructions: `${options.systemInstructions || ''}${careerContext}`
+    };
+    
+    return await aiRequest(sessionId, userInput, enhancedOptions);
+    
+  } catch (error) {
+    console.error('Error in RAG-enhanced AI request:', error);
+    // Fallback to regular AI request
+    return await aiRequest(sessionId, userInput, options);
+  }
 }
 
 /**

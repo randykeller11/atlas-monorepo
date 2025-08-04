@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './ImpactDashboard.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const ImpactDashboard = ({ onClose }) => {
   const [timeRange, setTimeRange] = useState('30d');
   const [selectedMetric, setSelectedMetric] = useState('overview');
-  
-  // Fake data for demo
-  const dashboardData = {
+  const [dashboardData, setDashboardData] = useState({
     overview: {
       totalUsers: 2847,
       completionRate: 78.5,
@@ -73,6 +74,31 @@ const ImpactDashboard = ({ onClose }) => {
         outcome: 'Skill Development'
       }
     ]
+  });
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [timeRange]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [metricsRes, personasRes, outcomesRes] = await Promise.all([
+        axios.get(`${API_URL}/api/dashboard/metrics?timeRange=${timeRange}`),
+        axios.get(`${API_URL}/api/dashboard/personas`),
+        axios.get(`${API_URL}/api/dashboard/outcomes`)
+      ]);
+      
+      setDashboardData(prevData => ({
+        overview: metricsRes.data,
+        trends: metricsRes.data.trends,
+        personas: { distribution: personasRes.data },
+        outcomes: outcomesRes.data,
+        feedback: prevData.feedback // Keep static feedback for now
+      }));
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Keep using static data as fallback
+    }
   };
 
   const MetricCard = ({ title, value, change, icon, color = '#667eea' }) => (

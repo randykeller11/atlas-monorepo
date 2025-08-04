@@ -752,6 +752,7 @@ function AppContent() {
                 <DayInLifeSimulator
                   onClose={() => setShowSimulator(false)}
                   personaCard={personaCard}
+                  sessionId={sessionId}
                 />
               )}
 

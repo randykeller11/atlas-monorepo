@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './DayInLifeSimulator.css';
 
-const DayInLifeSimulator = ({ onClose, personaCard }) => {
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
+const DayInLifeSimulator = ({ onClose, personaCard, sessionId }) => {
   const [currentScenario, setCurrentScenario] = useState(0);
   const [score, setScore] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -144,21 +147,49 @@ const DayInLifeSimulator = ({ onClose, personaCard }) => {
     return () => clearInterval(timer);
   }, [isComplete]);
 
-  const handleChoiceSelect = (choice) => {
+  const handleChoiceSelect = async (choice) => {
     setSelectedChoice(choice);
     setFeedback(choice.feedback);
-    setScore(prev => prev + choice.score);
-    setCustomerSatisfaction(prev => Math.max(0, Math.min(100, prev + choice.impact.satisfaction)));
     
-    setTimeout(() => {
-      if (currentScenario < scenarios.length - 1) {
-        setCurrentScenario(prev => prev + 1);
-        setSelectedChoice(null);
-        setFeedback('');
-      } else {
-        setIsComplete(true);
-      }
-    }, 3000);
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/simulator/${sessionId}/respond`,
+        {
+          scenarioId: currentScenario,
+          choiceId: choice.id,
+          responseTime: 30 // You could track actual response time
+        }
+      );
+      
+      setScore(response.data.currentScore);
+      setCustomerSatisfaction(response.data.currentSatisfaction);
+      
+      setTimeout(() => {
+        if (!response.data.isComplete) {
+          setCurrentScenario(prev => prev + 1);
+          setSelectedChoice(null);
+          setFeedback('');
+        } else {
+          setIsComplete(true);
+        }
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error submitting choice:', error);
+      // Fallback to original logic
+      setScore(prev => prev + choice.score);
+      setCustomerSatisfaction(prev => Math.max(0, Math.min(100, prev + choice.impact.satisfaction)));
+      
+      setTimeout(() => {
+        if (currentScenario < scenarios.length - 1) {
+          setCurrentScenario(prev => prev + 1);
+          setSelectedChoice(null);
+          setFeedback('');
+        } else {
+          setIsComplete(true);
+        }
+      }, 3000);
+    }
   };
 
   const formatTime = (seconds) => {
